@@ -14,6 +14,11 @@ namespace War3Trainer
         public UInt32 UnitAddAbilityAddress   { get; private set; }
         public UInt32 UnitRemoveAbilityAddress { get; private set; }
         public UInt32 UnitSetAbilityLevelAddress { get; private set; }
+        public UInt32 UnitFindAbilityAddress { get; private set; }
+        public UInt32 UnitRefreshAbilityAddress { get; private set; }
+        public UInt32 UnitBeginAbilityUpdateAddress { get; private set; }
+        public UInt32 UnitEndAbilityUpdateAddress { get; private set; }
+        public UInt32 UnitGetAbilityMaxLevelAddress { get; private set; }
 
         public UInt32 AttackAttributesOffset  { get; private set; }
         public UInt32 HeroAttributesOffset    { get; private set; }
@@ -164,6 +169,11 @@ namespace War3Trainer
             UnitAddAbilityAddress = 0;
             UnitRemoveAbilityAddress = 0;
             UnitSetAbilityLevelAddress = 0;
+            UnitFindAbilityAddress = 0;
+            UnitRefreshAbilityAddress = 0;
+            UnitBeginAbilityUpdateAddress = 0;
+            UnitEndAbilityUpdateAddress = 0;
+            UnitGetAbilityMaxLevelAddress = 0;
 
             switch (ProcessVersion)
             {
@@ -180,13 +190,22 @@ namespace War3Trainer
                 case "1.25.1.6397":
                 case "1.26.0.6401":
                 case "1.27.0.52240":
+                    UnitAddAbilityAddress = _moduleAddress + 0x5CC280;
+                    UnitRemoveAbilityAddress = _moduleAddress + 0x486770;
+                    UnitSetAbilityLevelAddress = _moduleAddress + 0x2C4450;
+                    UnitFindAbilityAddress = _moduleAddress + 0x4865B0;
+                    UnitRefreshAbilityAddress = _moduleAddress + 0x124CA0;
+                    UnitBeginAbilityUpdateAddress = _moduleAddress + 0x1E49B0;
+                    UnitEndAbilityUpdateAddress = _moduleAddress + 0x1E4910;
+                    UnitGetAbilityMaxLevelAddress = _moduleAddress + 0x43BCF0;
+                    break;
                 case "1.28.0.7205":
                 case "1.28.5.7680":
                     // Fill these with addresses for the matching version.
                     // If you have a game.dll offset, use: _moduleAddress + 0xOFFSET.
                     // If you have a runtime absolute address, assign it directly.
-                    // Expected signatures are CUnit thiscall helpers:
-                    // Add(CUnit*, abilityId), Remove(CUnit*, abilityId), SetLevel(CUnit*, abilityId, level).
+                    // For 1.27.0.52240 these were derived from UnitAddAbility,
+                    // UnitRemoveAbility and SetUnitAbilityLevel JASS native wrappers.
                     break;
                 default:
                     System.Diagnostics.Debug.Assert(false, "Impossible to run to here");
