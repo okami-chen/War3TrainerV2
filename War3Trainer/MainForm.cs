@@ -415,6 +415,16 @@ namespace War3Trainer
             ExecuteAbilityUiCommand(false);
         }
 
+        private void cmdAddTalent_Click(object sender, EventArgs e)
+        {
+            ExecuteTalentUiCommand(true);
+        }
+
+        private void cmdRemoveTalent_Click(object sender, EventArgs e)
+        {
+            ExecuteTalentUiCommand(false);
+        }
+
         private void ExecuteAbilityUiCommand(bool addAbility)
         {
             if (_currentGameContext == null)
@@ -459,6 +469,55 @@ namespace War3Trainer
                 MessageBox.Show(
                     ex.Message,
                     "JASS技能",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+        }
+
+        private void ExecuteTalentUiCommand(bool addAbility)
+        {
+            if (_currentGameContext == null)
+            {
+                labAbilityCommandState.Text = "游戏未运行";
+                return;
+            }
+
+            string abilityId = GetSelectedAbilityId();
+            if (!IsValidAbilityId(abilityId))
+            {
+                labAbilityCommandState.Text = "技能ID必须是4位ASCII字符";
+                cboAbilityId.Focus();
+                return;
+            }
+
+            int abilityLevel = Decimal.ToInt32(numAbilityLevel.Value);
+            try
+            {
+                int unitCount = ExecuteJassAbilityCommand(abilityId, abilityLevel, addAbility);
+                labAbilityCommandState.Text = addAbility
+                    ? "已添加天赋到" + unitCount.ToString() + "个单位"
+                    : "已删除" + unitCount.ToString() + "个单位的天赋";
+            }
+            catch (NotSupportedException ex)
+            {
+                labAbilityCommandState.Text = "当前版本未配置JASS函数地址";
+                MessageBox.Show(
+                    ex.Message,
+                    "JASS天赋",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            catch (WindowsApi.BadProcessIdException ex)
+            {
+                labAbilityCommandState.Text = "游戏进程不可用";
+                ReportProcessIdFailure(ex.ProcessId);
+            }
+            catch (InvalidOperationException ex)
+            {
+                labAbilityCommandState.Text = ex.Message;
+                MessageBox.Show(
+                    ex.Message,
+                    "JASS天赋",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
             }
@@ -576,6 +635,38 @@ namespace War3Trainer
             return selectedUnits.Count;
         }
 
+        private int ExecuteJassAbilityCommand(string abilityId, int abilityLevel, bool addAbility)
+        {
+            EnsureJassAbilityFunctionAddress(addAbility);
+
+            List<UInt32> selectedUnits = GetSelectedUnitAddresses();
+            if (selectedUnits.Count == 0)
+                throw new InvalidOperationException("没有选中的单位");
+
+            UInt32 abilityIdValue = AbilityIdToUInt32(abilityId);
+            using (WindowsApi.ProcessMemory mem = new WindowsApi.ProcessMemory(_currentGameContext.ProcessId))
+            {
+                foreach (UInt32 unitAddress in selectedUnits)
+                {
+                    UInt32 jassHandle;
+                    if (!TryGetJassUnitHandle(mem, unitAddress, out jassHandle))
+                        throw new InvalidOperationException("无法获取选中单位的JASS handle");
+
+                    if (addAbility)
+                    {
+                        ExecuteJassAddAbility(mem, jassHandle, abilityIdValue);
+                        ExecuteJassSetAbilityLevel(mem, jassHandle, abilityIdValue, abilityLevel);
+                    }
+                    else
+                    {
+                        ExecuteJassRemoveAbility(mem, jassHandle, abilityIdValue);
+                    }
+                }
+            }
+
+            return selectedUnits.Count;
+        }
+
         private void EnsureAbilityFunctionAddress(bool addAbility)
         {
             if (addAbility)
@@ -601,6 +692,38 @@ namespace War3Trainer
                 {
                     throw new NotSupportedException(
                         "当前游戏版本没有配置完整的删除技能函数地址。\r\n\r\n"
+                        + "请在GameContext.GetAbilityFunctionAddress()里填写当前版本game.dll对应地址后再使用。");
+                }
+            }
+        }
+
+        private void EnsureJassAbilityFunctionAddress(bool addAbility)
+        {
+            if (_currentGameContext.JassStateGlobalAddress == 0
+                || _currentGameContext.JassGetManagerAddress == 0
+                || _currentGameContext.JassGetAgentByObjectAddress == 0)
+            {
+                throw new NotSupportedException(
+                    "当前游戏版本没有配置JASS handle相关函数地址。\r\n\r\n"
+                    + "请在GameContext.GetAbilityFunctionAddress()里填写当前版本game.dll对应地址后再使用。");
+            }
+
+            if (addAbility)
+            {
+                if (_currentGameContext.JassUnitAddAbilityAddress == 0
+                    || _currentGameContext.JassSetUnitAbilityLevelAddress == 0)
+                {
+                    throw new NotSupportedException(
+                        "当前游戏版本没有配置完整的JASS添加/设置天赋函数地址。\r\n\r\n"
+                        + "请在GameContext.GetAbilityFunctionAddress()里填写当前版本game.dll对应地址后再使用。");
+                }
+            }
+            else
+            {
+                if (_currentGameContext.JassUnitRemoveAbilityAddress == 0)
+                {
+                    throw new NotSupportedException(
+                        "当前游戏版本没有配置完整的JASS删除天赋函数地址。\r\n\r\n"
                         + "请在GameContext.GetAbilityFunctionAddress()里填写当前版本game.dll对应地址后再使用。");
                 }
             }
@@ -645,6 +768,132 @@ namespace War3Trainer
                 | ((UInt32)(byte)abilityId[1] << 16)
                 | ((UInt32)(byte)abilityId[2] << 8)
                 | (UInt32)(byte)abilityId[3]);
+        }
+
+        private bool TryGetJassUnitHandle(
+            WindowsApi.ProcessMemory mem,
+            UInt32 unitAddress,
+            out UInt32 jassHandle)
+        {
+            jassHandle = 0;
+            if (_currentGameContext.JassStateGlobalAddress == 0
+                || _currentGameContext.JassGetManagerAddress == 0
+                || _currentGameContext.JassGetAgentByObjectAddress == 0)
+                return false;
+
+            RemoteCodeBuilder code = new RemoteCodeBuilder();
+            code.MovEcxFromAddress(_currentGameContext.JassStateGlobalAddress);
+            code.MovEax(_currentGameContext.JassGetManagerAddress);
+            code.CallEax();
+            code.Ret();
+
+            UInt32 jassManager = mem.ExecuteRemoteCode(code.ToArray());
+            if (jassManager == 0)
+                return false;
+
+            code = new RemoteCodeBuilder();
+            code.Push(unitAddress);
+            code.MovEcx(jassManager);
+            code.MovEax(_currentGameContext.JassGetAgentByObjectAddress);
+            code.CallEax();
+            code.Ret();
+
+            UInt32 jassAgent = mem.ExecuteRemoteCode(code.ToArray());
+            if (jassAgent == 0)
+                return false;
+
+            UInt32 handleTable = mem.ReadUInt32((IntPtr)unchecked(jassManager + 0x19C));
+            if (handleTable == 0)
+                return false;
+
+            const UInt32 firstJassHandle = 0x100000;
+            const UInt32 maxHandlesToScan = 0x200000;
+            const int entrySize = 12;
+            const int entriesPerChunk = 4096;
+            const int objectOffsetInEntry = 4;
+
+            byte[] targetBytes = BitConverter.GetBytes(jassAgent);
+            for (UInt32 startIndex = 0; startIndex < maxHandlesToScan; startIndex += (UInt32)entriesPerChunk)
+            {
+                UInt32 remainingEntries = maxHandlesToScan - startIndex;
+                int entriesThisChunk = remainingEntries > entriesPerChunk
+                    ? entriesPerChunk
+                    : (int)remainingEntries;
+                int bytesRead;
+                byte[] tableBytes = mem.ReadBytes(
+                    (IntPtr)unchecked(handleTable + startIndex * entrySize),
+                    entriesThisChunk * entrySize,
+                    out bytesRead);
+
+                if (bytesRead < entrySize)
+                    break;
+
+                int readableEntries = bytesRead / entrySize;
+                for (int entryIndex = 0; entryIndex < readableEntries; entryIndex++)
+                {
+                    int objectOffset = entryIndex * entrySize + objectOffsetInEntry;
+                    if (tableBytes[objectOffset] == targetBytes[0]
+                        && tableBytes[objectOffset + 1] == targetBytes[1]
+                        && tableBytes[objectOffset + 2] == targetBytes[2]
+                        && tableBytes[objectOffset + 3] == targetBytes[3])
+                    {
+                        jassHandle = firstJassHandle + startIndex + (UInt32)entryIndex;
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private void ExecuteJassAddAbility(
+            WindowsApi.ProcessMemory mem,
+            UInt32 jassHandle,
+            UInt32 abilityId)
+        {
+            RemoteCodeBuilder code = new RemoteCodeBuilder();
+            code.Push(abilityId);
+            code.Push(jassHandle);
+            code.MovEax(_currentGameContext.JassUnitAddAbilityAddress);
+            code.CallEax();
+            code.AddEsp(8);
+            code.Ret();
+            mem.ExecuteRemoteCode(code.ToArray());
+        }
+
+        private void ExecuteJassRemoveAbility(
+            WindowsApi.ProcessMemory mem,
+            UInt32 jassHandle,
+            UInt32 abilityId)
+        {
+            RemoteCodeBuilder code = new RemoteCodeBuilder();
+            code.Push(abilityId);
+            code.Push(jassHandle);
+            code.MovEax(_currentGameContext.JassUnitRemoveAbilityAddress);
+            code.CallEax();
+            code.AddEsp(8);
+            code.Ret();
+            mem.ExecuteRemoteCode(code.ToArray());
+        }
+
+        private void ExecuteJassSetAbilityLevel(
+            WindowsApi.ProcessMemory mem,
+            UInt32 jassHandle,
+            UInt32 abilityId,
+            int abilityLevel)
+        {
+            if (abilityLevel < 1)
+                abilityLevel = 1;
+
+            RemoteCodeBuilder code = new RemoteCodeBuilder();
+            code.Push(unchecked((UInt32)abilityLevel));
+            code.Push(abilityId);
+            code.Push(jassHandle);
+            code.MovEax(_currentGameContext.JassSetUnitAbilityLevelAddress);
+            code.CallEax();
+            code.AddEsp(12);
+            code.Ret();
+            mem.ExecuteRemoteCode(code.ToArray());
         }
 
         private void ExecuteAddAbility(
@@ -816,6 +1065,7 @@ namespace War3Trainer
             public void MovEbx(UInt32 value) { AddByte(0xBB); AddUInt32(value); }
             public void MovEcx(UInt32 value) { AddByte(0xB9); AddUInt32(value); }
             public void MovEdx(UInt32 value) { AddByte(0xBA); AddUInt32(value); }
+            public void MovEcxFromAddress(UInt32 address) { AddBytes(0x8B, 0x0D); AddUInt32(address); }
             public void MovEsiEax() { AddBytes(0x8B, 0xF0); }
             public void MovEdiEax() { AddBytes(0x8B, 0xF8); }
             public void MovEbxEax() { AddBytes(0x8B, 0xD8); }
@@ -832,6 +1082,7 @@ namespace War3Trainer
             public void CallEax() { AddBytes(0xFF, 0xD0); }
             public void CallDwordEax(UInt32 offset) { AddBytes(0xFF, 0x90); AddUInt32(offset); }
             public void CallDwordEdx(UInt32 offset) { AddBytes(0xFF, 0x92); AddUInt32(offset); }
+            public void AddEsp(byte value) { AddBytes(0x83, 0xC4, value); }
             public void Ret() { AddByte(0xC3); }
             public void Jmp(string label) { AddByte(0xE9); AddJump(label); }
             public void Jz(string label) { AddBytes(0x0F, 0x84); AddJump(label); }

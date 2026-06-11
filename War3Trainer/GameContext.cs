@@ -19,6 +19,12 @@ namespace War3Trainer
         public UInt32 UnitBeginAbilityUpdateAddress { get; private set; }
         public UInt32 UnitEndAbilityUpdateAddress { get; private set; }
         public UInt32 UnitGetAbilityMaxLevelAddress { get; private set; }
+        public UInt32 JassStateGlobalAddress { get; private set; }
+        public UInt32 JassGetManagerAddress { get; private set; }
+        public UInt32 JassGetAgentByObjectAddress { get; private set; }
+        public UInt32 JassUnitAddAbilityAddress { get; private set; }
+        public UInt32 JassUnitRemoveAbilityAddress { get; private set; }
+        public UInt32 JassSetUnitAbilityLevelAddress { get; private set; }
 
         public UInt32 AttackAttributesOffset  { get; private set; }
         public UInt32 HeroAttributesOffset    { get; private set; }
@@ -174,6 +180,12 @@ namespace War3Trainer
             UnitBeginAbilityUpdateAddress = 0;
             UnitEndAbilityUpdateAddress = 0;
             UnitGetAbilityMaxLevelAddress = 0;
+            JassStateGlobalAddress = 0;
+            JassGetManagerAddress = 0;
+            JassGetAgentByObjectAddress = 0;
+            JassUnitAddAbilityAddress = 0;
+            JassUnitRemoveAbilityAddress = 0;
+            JassSetUnitAbilityLevelAddress = 0;
 
             switch (ProcessVersion)
             {
@@ -206,6 +218,12 @@ namespace War3Trainer
                     UnitBeginAbilityUpdateAddress = _moduleAddress + 0x1E49B0;
                     UnitEndAbilityUpdateAddress = _moduleAddress + 0x1E4910;
                     UnitGetAbilityMaxLevelAddress = _moduleAddress + 0x43BCF0;
+                    JassStateGlobalAddress = _moduleAddress + 0x8722BC;
+                    JassGetManagerAddress = _moduleAddress + 0x29B2E0;
+                    JassGetAgentByObjectAddress = _moduleAddress + 0x327570;
+                    JassUnitAddAbilityAddress = _moduleAddress + 0x2C84E0;
+                    JassUnitRemoveAbilityAddress = _moduleAddress + 0x2C8610;
+                    JassSetUnitAbilityLevelAddress = _moduleAddress + 0x2C4450;
                     break;
                 default:
                     System.Diagnostics.Debug.Assert(false, "Impossible to run to here");
