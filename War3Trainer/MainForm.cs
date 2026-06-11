@@ -563,24 +563,12 @@ namespace War3Trainer
                 {
                     if (addAbility)
                     {
-                        ExecuteThisCall(
-                            mem,
-                            _currentGameContext.UnitAddAbilityAddress,
-                            unitAddress,
-                            new UInt32[] { abilityIdValue });
-                        ExecuteThisCall(
-                            mem,
-                            _currentGameContext.UnitSetAbilityLevelAddress,
-                            unitAddress,
-                            new UInt32[] { abilityIdValue, unchecked((UInt32)abilityLevel) });
+                        ExecuteAddAbility(mem, unitAddress, abilityIdValue);
+                        ExecuteSetAbilityLevel(mem, unitAddress, abilityIdValue, abilityLevel);
                     }
                     else
                     {
-                        ExecuteThisCall(
-                            mem,
-                            _currentGameContext.UnitRemoveAbilityAddress,
-                            unitAddress,
-                            new UInt32[] { abilityIdValue });
+                        ExecuteRemoveAbility(mem, unitAddress, abilityIdValue);
                     }
                 }
             }
@@ -593,19 +581,26 @@ namespace War3Trainer
             if (addAbility)
             {
                 if (_currentGameContext.UnitAddAbilityAddress == 0
-                    || _currentGameContext.UnitSetAbilityLevelAddress == 0)
+                    || _currentGameContext.UnitSetAbilityLevelAddress == 0
+                    || _currentGameContext.UnitFindAbilityAddress == 0
+                    || _currentGameContext.UnitRefreshAbilityAddress == 0
+                    || _currentGameContext.UnitBeginAbilityUpdateAddress == 0
+                    || _currentGameContext.UnitEndAbilityUpdateAddress == 0
+                    || _currentGameContext.UnitGetAbilityMaxLevelAddress == 0)
                 {
                     throw new NotSupportedException(
-                        "当前游戏版本没有配置UnitAddAbility/SetAbilityLevel函数地址。\r\n\r\n"
+                        "当前游戏版本没有配置完整的添加/设置技能函数地址。\r\n\r\n"
                         + "请在GameContext.GetAbilityFunctionAddress()里填写当前版本game.dll对应地址后再使用。");
                 }
             }
             else
             {
-                if (_currentGameContext.UnitRemoveAbilityAddress == 0)
+                if (_currentGameContext.UnitRemoveAbilityAddress == 0
+                    || _currentGameContext.UnitFindAbilityAddress == 0
+                    || _currentGameContext.UnitRefreshAbilityAddress == 0)
                 {
                     throw new NotSupportedException(
-                        "当前游戏版本没有配置UnitRemoveAbility函数地址。\r\n\r\n"
+                        "当前游戏版本没有配置完整的删除技能函数地址。\r\n\r\n"
                         + "请在GameContext.GetAbilityFunctionAddress()里填写当前版本game.dll对应地址后再使用。");
                 }
             }
@@ -652,35 +647,232 @@ namespace War3Trainer
                 | (UInt32)(byte)abilityId[3]);
         }
 
-        private static void ExecuteThisCall(
+        private void ExecuteAddAbility(
             WindowsApi.ProcessMemory mem,
-            UInt32 functionAddress,
-            UInt32 thisAddress,
-            UInt32[] args)
+            UInt32 unitAddress,
+            UInt32 abilityId)
         {
-            List<byte> code = new List<byte>();
+            RemoteCodeBuilder code = new RemoteCodeBuilder();
 
-            // mov ecx, thisAddress
-            code.Add(0xB9);
-            code.AddRange(BitConverter.GetBytes(thisAddress));
+            EmitFindAbility(code, unitAddress, abilityId);
+            code.TestEaxEax();
+            code.Jnz("done");
 
-            for (int i = args.Length - 1; i >= 0; i--)
+            code.MovEcx(unitAddress);
+            code.MovEax(_currentGameContext.UnitBeginAbilityUpdateAddress);
+            code.CallEax();
+
+            code.PushByte(0);
+            code.PushByte(0);
+            code.PushByte(0);
+            code.MovEdx(abilityId);
+            code.MovEcx(unitAddress);
+            code.MovEax(_currentGameContext.UnitAddAbilityAddress);
+            code.CallEax();
+            code.MovEsiEax();
+
+            code.MovEcx(unitAddress);
+            code.MovEax(_currentGameContext.UnitEndAbilityUpdateAddress);
+            code.CallEax();
+
+            code.TestEsiEsi();
+            code.Jz("done");
+            code.MovEcx(unitAddress);
+            code.MovEax(_currentGameContext.UnitRefreshAbilityAddress);
+            code.CallEax();
+
+            code.Mark("done");
+            code.Ret();
+            mem.ExecuteRemoteCode(code.ToArray());
+        }
+
+        private void ExecuteRemoveAbility(
+            WindowsApi.ProcessMemory mem,
+            UInt32 unitAddress,
+            UInt32 abilityId)
+        {
+            RemoteCodeBuilder code = new RemoteCodeBuilder();
+
+            EmitFindAbility(code, unitAddress, abilityId);
+            code.TestEaxEax();
+            code.Jz("done");
+
+            code.PushEax();
+            code.MovEcx(unitAddress);
+            code.MovEax(_currentGameContext.UnitRemoveAbilityAddress);
+            code.CallEax();
+
+            code.MovEcx(unitAddress);
+            code.MovEax(_currentGameContext.UnitRefreshAbilityAddress);
+            code.CallEax();
+
+            code.Mark("done");
+            code.Ret();
+            mem.ExecuteRemoteCode(code.ToArray());
+        }
+
+        private void ExecuteSetAbilityLevel(
+            WindowsApi.ProcessMemory mem,
+            UInt32 unitAddress,
+            UInt32 abilityId,
+            int abilityLevel)
+        {
+            if (abilityLevel < 1)
+                abilityLevel = 1;
+
+            RemoteCodeBuilder code = new RemoteCodeBuilder();
+
+            EmitFindAbility(code, unitAddress, abilityId);
+            code.TestEaxEax();
+            code.Jz("done");
+            code.MovEdiEax();
+
+            code.MovEcxEdi();
+            code.MovEax(_currentGameContext.UnitGetAbilityMaxLevelAddress);
+            code.CallEax();
+
+            code.MovEbx(unchecked((UInt32)abilityLevel));
+            code.CmpEbxEax();
+            code.Jl("level_ok");
+            code.MovEbxEax();
+            code.Mark("level_ok");
+
+            code.MovEsiFromEdi(0x50);
+            code.IncEsi();
+            code.CmpEsiEbx();
+            code.Jge("maybe_decrease");
+
+            code.Mark("increase_loop");
+            code.MovEaxFromEdi();
+            code.MovEcxEdi();
+            code.CallDwordEax(0x2E4);
+            code.IncEsi();
+            code.CmpEsiEbx();
+            code.Jl("increase_loop");
+            code.Jmp("done");
+
+            code.Mark("maybe_decrease");
+            code.Jle("done");
+
+            code.Mark("decrease_loop");
+            code.MovEdxFromEdi();
+            code.MovEcxEdi();
+            code.CallDwordEdx(0x2E8);
+            code.DecEsi();
+            code.CmpEsiEbx();
+            code.Jg("decrease_loop");
+
+            code.Mark("done");
+            code.Ret();
+            mem.ExecuteRemoteCode(code.ToArray());
+        }
+
+        private void EmitFindAbility(
+            RemoteCodeBuilder code,
+            UInt32 unitAddress,
+            UInt32 abilityId)
+        {
+            code.PushByte(1);
+            code.PushByte(1);
+            code.PushByte(1);
+            code.PushByte(0);
+            code.Push(abilityId);
+            code.MovEcx(unitAddress);
+            code.MovEax(_currentGameContext.UnitFindAbilityAddress);
+            code.CallEax();
+        }
+
+        private sealed class RemoteCodeBuilder
+        {
+            private readonly List<byte> _code = new List<byte>();
+            private readonly Dictionary<string, int> _labels = new Dictionary<string, int>();
+            private readonly List<JumpPatch> _jumps = new List<JumpPatch>();
+
+            public void Mark(string label)
             {
-                // push arg
-                code.Add(0x68);
-                code.AddRange(BitConverter.GetBytes(args[i]));
+                _labels[label] = _code.Count;
             }
 
-            // mov eax, functionAddress
-            code.Add(0xB8);
-            code.AddRange(BitConverter.GetBytes(functionAddress));
+            public byte[] ToArray()
+            {
+                foreach (JumpPatch jump in _jumps)
+                {
+                    int target;
+                    if (!_labels.TryGetValue(jump.Label, out target))
+                        throw new InvalidOperationException("Missing remote code label: " + jump.Label);
 
-            // call eax; ret
-            code.Add(0xFF);
-            code.Add(0xD0);
-            code.Add(0xC3);
+                    int relative = target - (jump.Offset + 4);
+                    byte[] bytes = BitConverter.GetBytes(relative);
+                    for (int i = 0; i < 4; i++)
+                        _code[jump.Offset + i] = bytes[i];
+                }
+                return _code.ToArray();
+            }
 
-            mem.ExecuteRemoteCode(code.ToArray());
+            public void Push(UInt32 value) { AddByte(0x68); AddUInt32(value); }
+            public void PushByte(byte value) { AddByte(0x6A); AddByte(value); }
+            public void PushEax() { AddByte(0x50); }
+            public void MovEax(UInt32 value) { AddByte(0xB8); AddUInt32(value); }
+            public void MovEbx(UInt32 value) { AddByte(0xBB); AddUInt32(value); }
+            public void MovEcx(UInt32 value) { AddByte(0xB9); AddUInt32(value); }
+            public void MovEdx(UInt32 value) { AddByte(0xBA); AddUInt32(value); }
+            public void MovEsiEax() { AddBytes(0x8B, 0xF0); }
+            public void MovEdiEax() { AddBytes(0x8B, 0xF8); }
+            public void MovEbxEax() { AddBytes(0x8B, 0xD8); }
+            public void MovEcxEdi() { AddBytes(0x8B, 0xCF); }
+            public void MovEaxFromEdi() { AddBytes(0x8B, 0x07); }
+            public void MovEdxFromEdi() { AddBytes(0x8B, 0x17); }
+            public void MovEsiFromEdi(byte offset) { AddBytes(0x8B, 0x77, offset); }
+            public void IncEsi() { AddByte(0x46); }
+            public void DecEsi() { AddByte(0x4E); }
+            public void CmpEbxEax() { AddBytes(0x3B, 0xD8); }
+            public void CmpEsiEbx() { AddBytes(0x3B, 0xF3); }
+            public void TestEaxEax() { AddBytes(0x85, 0xC0); }
+            public void TestEsiEsi() { AddBytes(0x85, 0xF6); }
+            public void CallEax() { AddBytes(0xFF, 0xD0); }
+            public void CallDwordEax(UInt32 offset) { AddBytes(0xFF, 0x90); AddUInt32(offset); }
+            public void CallDwordEdx(UInt32 offset) { AddBytes(0xFF, 0x92); AddUInt32(offset); }
+            public void Ret() { AddByte(0xC3); }
+            public void Jmp(string label) { AddByte(0xE9); AddJump(label); }
+            public void Jz(string label) { AddBytes(0x0F, 0x84); AddJump(label); }
+            public void Jnz(string label) { AddBytes(0x0F, 0x85); AddJump(label); }
+            public void Jl(string label) { AddBytes(0x0F, 0x8C); AddJump(label); }
+            public void Jle(string label) { AddBytes(0x0F, 0x8E); AddJump(label); }
+            public void Jg(string label) { AddBytes(0x0F, 0x8F); AddJump(label); }
+            public void Jge(string label) { AddBytes(0x0F, 0x8D); AddJump(label); }
+
+            private void AddJump(string label)
+            {
+                _jumps.Add(new JumpPatch(_code.Count, label));
+                AddUInt32(0);
+            }
+
+            private void AddByte(byte value)
+            {
+                _code.Add(value);
+            }
+
+            private void AddBytes(params byte[] bytes)
+            {
+                _code.AddRange(bytes);
+            }
+
+            private void AddUInt32(UInt32 value)
+            {
+                _code.AddRange(BitConverter.GetBytes(value));
+            }
+
+            private sealed class JumpPatch
+            {
+                public int Offset { get; private set; }
+                public string Label { get; private set; }
+
+                public JumpPatch(int offset, string label)
+                {
+                    Offset = offset;
+                    Label = label;
+                }
+            }
         }
 
         private void viewData_KeyPress(object sender, KeyPressEventArgs e)
