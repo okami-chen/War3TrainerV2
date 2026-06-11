@@ -22,6 +22,7 @@ namespace War3Trainer
         public UInt32 JassStateGlobalAddress { get; private set; }
         public UInt32 JassGetManagerAddress { get; private set; }
         public UInt32 JassGetAgentByObjectAddress { get; private set; }
+        public UInt32 JassHandleToUnitAddress { get; private set; }
         public UInt32 JassUnitAddAbilityAddress { get; private set; }
         public UInt32 JassUnitRemoveAbilityAddress { get; private set; }
         public UInt32 JassSetUnitAbilityLevelAddress { get; private set; }
@@ -183,6 +184,7 @@ namespace War3Trainer
             JassStateGlobalAddress = 0;
             JassGetManagerAddress = 0;
             JassGetAgentByObjectAddress = 0;
+            JassHandleToUnitAddress = 0;
             JassUnitAddAbilityAddress = 0;
             JassUnitRemoveAbilityAddress = 0;
             JassSetUnitAbilityLevelAddress = 0;
@@ -190,26 +192,6 @@ namespace War3Trainer
             switch (ProcessVersion)
             {
                 case "1.20.4.6074":
-                case "1.21.0.6263":
-                case "1.21.1.6300":
-                case "1.22.0.6328":
-                case "1.23.0.6352":
-                case "1.24.0.6372":
-                case "1.24.1.6374":
-                case "1.24.2.6378":
-                case "1.24.3.6384":
-                case "1.24.4.6387":
-                case "1.25.1.6397":
-                case "1.26.0.6401":
-                case "1.28.0.7205":
-                case "1.28.5.7680":
-                    // Fill these with addresses for the matching version.
-                    // If you have a game.dll offset, use: _moduleAddress + 0xOFFSET.
-                    // If you have a runtime absolute address, assign it directly.
-                    // For 1.27.0.52240 these were derived from UnitAddAbility,
-                    // UnitRemoveAbility and SetUnitAbilityLevel JASS native wrappers.
-                    break;
-                case "1.27.0.52240":
                     UnitAddAbilityAddress = _moduleAddress + 0x5CC280;
                     UnitRemoveAbilityAddress = _moduleAddress + 0x486770;
                     UnitSetAbilityLevelAddress = _moduleAddress + 0x2C4450;
@@ -221,9 +203,134 @@ namespace War3Trainer
                     JassStateGlobalAddress = _moduleAddress + 0x8722BC;
                     JassGetManagerAddress = _moduleAddress + 0x29B2E0;
                     JassGetAgentByObjectAddress = _moduleAddress + 0x327570;
+                    JassHandleToUnitAddress = 0;
                     JassUnitAddAbilityAddress = _moduleAddress + 0x2C84E0;
                     JassUnitRemoveAbilityAddress = _moduleAddress + 0x2C8610;
                     JassSetUnitAbilityLevelAddress = _moduleAddress + 0x2C4450;
+                    break;
+                case "1.21.0.6263":
+                    UnitAddAbilityAddress = _moduleAddress + 0x5D02A0;
+                    UnitRemoveAbilityAddress = _moduleAddress + 0x48A6A0;
+                    UnitSetAbilityLevelAddress = _moduleAddress + 0x2C7A20;
+                    UnitFindAbilityAddress = _moduleAddress + 0x48A4E0;
+                    UnitRefreshAbilityAddress = _moduleAddress + 0x124CC0;
+                    UnitBeginAbilityUpdateAddress = _moduleAddress + 0x1E7B70;
+                    UnitEndAbilityUpdateAddress = _moduleAddress + 0x1E7AD0;
+                    UnitGetAbilityMaxLevelAddress = _moduleAddress + 0x43FC20;
+                    JassStateGlobalAddress = _moduleAddress + 0x873334;
+                    JassGetManagerAddress = _moduleAddress + 0x29E5C0;
+                    JassGetAgentByObjectAddress = _moduleAddress + 0x32B700;
+                    JassHandleToUnitAddress = 0;
+                    JassUnitAddAbilityAddress = _moduleAddress + 0x2CBAB0;
+                    JassUnitRemoveAbilityAddress = _moduleAddress + 0x2CBBE0;
+                    JassSetUnitAbilityLevelAddress = _moduleAddress + 0x2C7A20;
+                    break;
+                case "1.21.1.6300":
+                case "1.24.0.6372":
+                case "1.24.2.6378":
+                case "1.24.3.6384":
+                case "1.27.0.52240":
+                case "1.28.0.7205":
+                case "1.28.5.7680":
+                    // Fill these with addresses for the matching version.
+                    // If you have a game.dll offset, use: _moduleAddress + 0xOFFSET.
+                    // If you have a runtime absolute address, assign it directly.
+                    break;
+                case "1.22.0.6328":
+                    UnitAddAbilityAddress = _moduleAddress + 0x24C2B0;
+                    UnitRemoveAbilityAddress = _moduleAddress + 0x0792F0;
+                    UnitSetAbilityLevelAddress = _moduleAddress + 0x3C0450;
+                    UnitFindAbilityAddress = _moduleAddress + 0x077D80;
+                    UnitRefreshAbilityAddress = _moduleAddress + 0x331CB0;
+                    UnitBeginAbilityUpdateAddress = _moduleAddress + 0x2B2930;
+                    UnitEndAbilityUpdateAddress = _moduleAddress + 0x2B2900;
+                    UnitGetAbilityMaxLevelAddress = _moduleAddress + 0x02DCE0;
+                    JassStateGlobalAddress = _moduleAddress + 0xAA2FFC;
+                    JassGetManagerAddress = _moduleAddress + 0x3A6C50;
+                    JassHandleToUnitAddress = _moduleAddress + 0x3B81D0;
+                    JassUnitAddAbilityAddress = _moduleAddress + 0x3C1540;
+                    JassUnitRemoveAbilityAddress = _moduleAddress + 0x3C15B0;
+                    JassSetUnitAbilityLevelAddress = _moduleAddress + 0x3C0450;
+                    break;
+                case "1.23.0.6352":
+                    UnitAddAbilityAddress = _moduleAddress + 0x24D7F0;
+                    UnitRemoveAbilityAddress = _moduleAddress + 0x07A830;
+                    UnitSetAbilityLevelAddress = _moduleAddress + 0x3C2170;
+                    UnitFindAbilityAddress = _moduleAddress + 0x079340;
+                    UnitRefreshAbilityAddress = _moduleAddress + 0x3331F0;
+                    UnitBeginAbilityUpdateAddress = _moduleAddress + 0x2B3E70;
+                    UnitEndAbilityUpdateAddress = _moduleAddress + 0x2B3E40;
+                    UnitGetAbilityMaxLevelAddress = _moduleAddress + 0x02F220;
+                    JassStateGlobalAddress = _moduleAddress + 0xABBE4C;
+                    JassGetManagerAddress = _moduleAddress + 0x3A8640;
+                    JassHandleToUnitAddress = _moduleAddress + 0x3B9EF0;
+                    JassUnitAddAbilityAddress = _moduleAddress + 0x3C3260;
+                    JassUnitRemoveAbilityAddress = _moduleAddress + 0x3C32D0;
+                    JassSetUnitAbilityLevelAddress = _moduleAddress + 0x3C2170;
+                    break;
+                case "1.24.1.6374":
+                    UnitAddAbilityAddress = _moduleAddress + 0x24D8A0;
+                    UnitRemoveAbilityAddress = _moduleAddress + 0x07A8E0;
+                    UnitSetAbilityLevelAddress = _moduleAddress + 0x3C7C30;
+                    UnitFindAbilityAddress = _moduleAddress + 0x0793F0;
+                    UnitRefreshAbilityAddress = _moduleAddress + 0x3332B0;
+                    UnitBeginAbilityUpdateAddress = _moduleAddress + 0x2B3F30;
+                    UnitEndAbilityUpdateAddress = _moduleAddress + 0x2B3F00;
+                    UnitGetAbilityMaxLevelAddress = _moduleAddress + 0x02F2D0;
+                    JassStateGlobalAddress = _moduleAddress + 0xACD44C;
+                    JassGetManagerAddress = _moduleAddress + 0x3A8AE0;
+                    JassHandleToUnitAddress = _moduleAddress + 0x3BE730;
+                    JassUnitAddAbilityAddress = _moduleAddress + 0x3C8D20;
+                    JassUnitRemoveAbilityAddress = _moduleAddress + 0x3C8D90;
+                    JassSetUnitAbilityLevelAddress = _moduleAddress + 0x3C7C30;
+                    break;
+                case "1.24.4.6387":
+                    UnitAddAbilityAddress = _moduleAddress + 0x24D900;
+                    UnitRemoveAbilityAddress = _moduleAddress + 0x07A8F0;
+                    UnitSetAbilityLevelAddress = _moduleAddress + 0x3C7CF0;
+                    UnitFindAbilityAddress = _moduleAddress + 0x079400;
+                    UnitRefreshAbilityAddress = _moduleAddress + 0x333370;
+                    UnitBeginAbilityUpdateAddress = _moduleAddress + 0x2B3FF0;
+                    UnitEndAbilityUpdateAddress = _moduleAddress + 0x2B3FC0;
+                    UnitGetAbilityMaxLevelAddress = _moduleAddress + 0x02F2B0;
+                    JassStateGlobalAddress = _moduleAddress + 0xACD44C;
+                    JassGetManagerAddress = _moduleAddress + 0x3A8BA0;
+                    JassHandleToUnitAddress = _moduleAddress + 0x3BE7F0;
+                    JassUnitAddAbilityAddress = _moduleAddress + 0x3C8DE0;
+                    JassUnitRemoveAbilityAddress = _moduleAddress + 0x3C8E50;
+                    JassSetUnitAbilityLevelAddress = _moduleAddress + 0x3C7CF0;
+                    break;
+                case "1.25.1.6397":
+                    UnitAddAbilityAddress = _moduleAddress + 0x24CBC0;
+                    UnitRemoveAbilityAddress = _moduleAddress + 0x079CC0;
+                    UnitSetAbilityLevelAddress = _moduleAddress + 0x3C6F80;
+                    UnitFindAbilityAddress = _moduleAddress + 0x0787D0;
+                    UnitRefreshAbilityAddress = _moduleAddress + 0x332600;
+                    UnitBeginAbilityUpdateAddress = _moduleAddress + 0x2B32A0;
+                    UnitEndAbilityUpdateAddress = _moduleAddress + 0x2B3270;
+                    UnitGetAbilityMaxLevelAddress = _moduleAddress + 0x02E570;
+                    JassStateGlobalAddress = _moduleAddress + 0xAB65F4;
+                    JassGetManagerAddress = _moduleAddress + 0x3A7E30;
+                    JassHandleToUnitAddress = _moduleAddress + 0x3BDA80;
+                    JassUnitAddAbilityAddress = _moduleAddress + 0x3C8070;
+                    JassUnitRemoveAbilityAddress = _moduleAddress + 0x3C80E0;
+                    JassSetUnitAbilityLevelAddress = _moduleAddress + 0x3C6F80;
+                    break;
+                case "1.26.0.6401":
+                    UnitAddAbilityAddress = _moduleAddress + 0x24CDF0;
+                    UnitRemoveAbilityAddress = _moduleAddress + 0x079CC0;
+                    UnitSetAbilityLevelAddress = _moduleAddress + 0x3C71B0;
+                    UnitFindAbilityAddress = _moduleAddress + 0x0787D0;
+                    UnitRefreshAbilityAddress = _moduleAddress + 0x332830;
+                    UnitBeginAbilityUpdateAddress = _moduleAddress + 0x2B34D0;
+                    UnitEndAbilityUpdateAddress = _moduleAddress + 0x2B34A0;
+                    UnitGetAbilityMaxLevelAddress = _moduleAddress + 0x02E570;
+                    JassStateGlobalAddress = _moduleAddress + 0xAB65F4;
+                    JassGetManagerAddress = _moduleAddress + 0x3A8060;
+                    JassHandleToUnitAddress = _moduleAddress + 0x3BDCB0;
+                    JassUnitAddAbilityAddress = _moduleAddress + 0x3C82A0;
+                    JassUnitRemoveAbilityAddress = _moduleAddress + 0x3C8310;
+                    JassSetUnitAbilityLevelAddress = _moduleAddress + 0x3C71B0;
                     break;
                 default:
                     System.Diagnostics.Debug.Assert(false, "Impossible to run to here");

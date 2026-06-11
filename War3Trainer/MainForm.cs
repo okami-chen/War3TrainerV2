@@ -701,7 +701,8 @@ namespace War3Trainer
         {
             if (_currentGameContext.JassStateGlobalAddress == 0
                 || _currentGameContext.JassGetManagerAddress == 0
-                || _currentGameContext.JassGetAgentByObjectAddress == 0)
+                || (_currentGameContext.JassGetAgentByObjectAddress == 0
+                    && _currentGameContext.JassHandleToUnitAddress == 0))
             {
                 throw new NotSupportedException(
                     "当前游戏版本没有配置JASS handle相关函数地址。\r\n\r\n"
@@ -777,9 +778,11 @@ namespace War3Trainer
         {
             jassHandle = 0;
             if (_currentGameContext.JassStateGlobalAddress == 0
-                || _currentGameContext.JassGetManagerAddress == 0
-                || _currentGameContext.JassGetAgentByObjectAddress == 0)
+                || _currentGameContext.JassGetManagerAddress == 0)
                 return false;
+
+            if (_currentGameContext.JassGetAgentByObjectAddress == 0)
+                return TryGetJassUnitHandleByRemoteScan(mem, unitAddress, out jassHandle);
 
             RemoteCodeBuilder code = new RemoteCodeBuilder();
             code.MovEcxFromAddress(_currentGameContext.JassStateGlobalAddress);
@@ -844,6 +847,72 @@ namespace War3Trainer
             }
 
             return false;
+        }
+
+        private bool TryGetJassUnitHandleByRemoteScan(
+            WindowsApi.ProcessMemory mem,
+            UInt32 unitAddress,
+            out UInt32 jassHandle)
+        {
+            jassHandle = 0;
+            if (_currentGameContext.JassHandleToUnitAddress == 0)
+                return false;
+
+            const UInt32 firstJassHandle = 0x100000;
+            const UInt32 maxHandlesToScan = 0x200000;
+
+            RemoteCodeBuilder code = new RemoteCodeBuilder();
+            code.PushEbx();
+            code.PushEsi();
+            code.PushEdi();
+
+            code.MovEcxFromAddress(_currentGameContext.JassStateGlobalAddress);
+            code.MovEax(_currentGameContext.JassGetManagerAddress);
+            code.CallEax();
+            code.TestEaxEax();
+            code.Jz("not_found");
+
+            code.MovEdiFromEax(0x19C);
+            code.TestEdiEdi();
+            code.Jz("not_found");
+
+            code.XorEsiEsi();
+            code.Mark("scan_loop");
+            code.CmpEsi(maxHandlesToScan);
+            code.Jge("not_found");
+
+            code.LeaEbxEsiTimes3();
+            code.MovEdxFromEdiEbxScale4(4);
+            code.TestEdxEdx();
+            code.Jz("next_handle");
+
+            code.MovEcxEsi();
+            code.AddEcx(firstJassHandle);
+            code.MovEax(_currentGameContext.JassHandleToUnitAddress);
+            code.CallEax();
+            code.CmpEax(unitAddress);
+            code.Jz("found");
+
+            code.Mark("next_handle");
+            code.IncEsi();
+            code.Jmp("scan_loop");
+
+            code.Mark("found");
+            code.MovEaxEsi();
+            code.AddEax(firstJassHandle);
+            code.Jmp("done");
+
+            code.Mark("not_found");
+            code.XorEaxEax();
+
+            code.Mark("done");
+            code.PopEdi();
+            code.PopEsi();
+            code.PopEbx();
+            code.Ret();
+
+            jassHandle = mem.ExecuteRemoteCode(code.ToArray());
+            return jassHandle != 0;
         }
 
         private void ExecuteJassAddAbility(
@@ -1061,24 +1130,42 @@ namespace War3Trainer
             public void Push(UInt32 value) { AddByte(0x68); AddUInt32(value); }
             public void PushByte(byte value) { AddByte(0x6A); AddByte(value); }
             public void PushEax() { AddByte(0x50); }
+            public void PushEbx() { AddByte(0x53); }
+            public void PushEsi() { AddByte(0x56); }
+            public void PushEdi() { AddByte(0x57); }
+            public void PopEbx() { AddByte(0x5B); }
+            public void PopEsi() { AddByte(0x5E); }
+            public void PopEdi() { AddByte(0x5F); }
             public void MovEax(UInt32 value) { AddByte(0xB8); AddUInt32(value); }
             public void MovEbx(UInt32 value) { AddByte(0xBB); AddUInt32(value); }
             public void MovEcx(UInt32 value) { AddByte(0xB9); AddUInt32(value); }
             public void MovEdx(UInt32 value) { AddByte(0xBA); AddUInt32(value); }
             public void MovEcxFromAddress(UInt32 address) { AddBytes(0x8B, 0x0D); AddUInt32(address); }
+            public void MovEdiFromEax(UInt32 offset) { AddBytes(0x8B, 0xB8); AddUInt32(offset); }
             public void MovEsiEax() { AddBytes(0x8B, 0xF0); }
             public void MovEdiEax() { AddBytes(0x8B, 0xF8); }
             public void MovEbxEax() { AddBytes(0x8B, 0xD8); }
             public void MovEcxEdi() { AddBytes(0x8B, 0xCF); }
+            public void MovEcxEsi() { AddBytes(0x8B, 0xCE); }
+            public void MovEaxEsi() { AddBytes(0x8B, 0xC6); }
             public void MovEaxFromEdi() { AddBytes(0x8B, 0x07); }
             public void MovEdxFromEdi() { AddBytes(0x8B, 0x17); }
             public void MovEsiFromEdi(byte offset) { AddBytes(0x8B, 0x77, offset); }
+            public void MovEdxFromEdiEbxScale4(byte offset) { AddBytes(0x8B, 0x54, 0x9F, offset); }
+            public void LeaEbxEsiTimes3() { AddBytes(0x8D, 0x1C, 0x76); }
             public void IncEsi() { AddByte(0x46); }
             public void DecEsi() { AddByte(0x4E); }
+            public void AddEax(UInt32 value) { AddByte(0x05); AddUInt32(value); }
+            public void AddEcx(UInt32 value) { AddBytes(0x81, 0xC1); AddUInt32(value); }
+            public void XorEaxEax() { AddBytes(0x33, 0xC0); }
+            public void XorEsiEsi() { AddBytes(0x33, 0xF6); }
+            public void CmpEax(UInt32 value) { AddByte(0x3D); AddUInt32(value); }
+            public void CmpEsi(UInt32 value) { AddBytes(0x81, 0xFE); AddUInt32(value); }
             public void CmpEbxEax() { AddBytes(0x3B, 0xD8); }
             public void CmpEsiEbx() { AddBytes(0x3B, 0xF3); }
             public void TestEaxEax() { AddBytes(0x85, 0xC0); }
             public void TestEsiEsi() { AddBytes(0x85, 0xF6); }
+            public void TestEdiEdi() { AddBytes(0x85, 0xFF); }
             public void CallEax() { AddBytes(0xFF, 0xD0); }
             public void CallDwordEax(UInt32 offset) { AddBytes(0xFF, 0x90); AddUInt32(offset); }
             public void CallDwordEdx(UInt32 offset) { AddBytes(0xFF, 0x92); AddUInt32(offset); }
