@@ -11,6 +11,9 @@ namespace War3Trainer
         public UInt32 ThisGameAddress         { get; private set; }
         public UInt32 UnitListAddress         { get; private set; }
         public UInt32 MoveSpeedAddress        { get; private set; }
+        public UInt32 UnitAddAbilityAddress   { get; private set; }
+        public UInt32 UnitRemoveAbilityAddress { get; private set; }
+        public UInt32 UnitSetAbilityLevelAddress { get; private set; }
 
         public UInt32 AttackAttributesOffset  { get; private set; }
         public UInt32 HeroAttributesOffset    { get; private set; }
@@ -42,6 +45,9 @@ namespace War3Trainer
 
             // Decide addresses according to version
             GetGameAddress();
+
+            // Decide ability function addresses according to version
+            GetAbilityFunctionAddress();
 
             // Decide offsets according to version
             GetGameOffset();
@@ -150,6 +156,41 @@ namespace War3Trainer
                     throw new UnkonwnGameVersionExpection(
                         this.ProcessId,
                         ProcessVersion);
+            }
+        }
+
+        private void GetAbilityFunctionAddress()
+        {
+            UnitAddAbilityAddress = 0;
+            UnitRemoveAbilityAddress = 0;
+            UnitSetAbilityLevelAddress = 0;
+
+            switch (ProcessVersion)
+            {
+                case "1.20.4.6074":
+                case "1.21.0.6263":
+                case "1.21.1.6300":
+                case "1.22.0.6328":
+                case "1.23.0.6352":
+                case "1.24.0.6372":
+                case "1.24.1.6374":
+                case "1.24.2.6378":
+                case "1.24.3.6384":
+                case "1.24.4.6387":
+                case "1.25.1.6397":
+                case "1.26.0.6401":
+                case "1.27.0.52240":
+                case "1.28.0.7205":
+                case "1.28.5.7680":
+                    // Fill these with addresses for the matching version.
+                    // If you have a game.dll offset, use: _moduleAddress + 0xOFFSET.
+                    // If you have a runtime absolute address, assign it directly.
+                    // Expected signatures are CUnit thiscall helpers:
+                    // Add(CUnit*, abilityId), Remove(CUnit*, abilityId), SetLevel(CUnit*, abilityId, level).
+                    break;
+                default:
+                    System.Diagnostics.Debug.Assert(false, "Impossible to run to here");
+                    break;
             }
         }
 

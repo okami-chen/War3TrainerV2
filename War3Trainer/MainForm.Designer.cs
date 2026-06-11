@@ -63,6 +63,14 @@
             this.imageList1 = new System.Windows.Forms.ImageList(this.components);
             this.splitMain = new System.Windows.Forms.SplitContainer();
             this.viewFunctions = new System.Windows.Forms.TreeView();
+            this.grpAbilityCommand = new System.Windows.Forms.GroupBox();
+            this.labAbilityCommandState = new System.Windows.Forms.Label();
+            this.cmdRemoveAbility = new System.Windows.Forms.Button();
+            this.cmdAddAbility = new System.Windows.Forms.Button();
+            this.numAbilityLevel = new System.Windows.Forms.NumericUpDown();
+            this.labAbilityLevel = new System.Windows.Forms.Label();
+            this.cboAbilityId = new System.Windows.Forms.ComboBox();
+            this.labAbilityId = new System.Windows.Forms.Label();
             this.txtInput = new System.Windows.Forms.TextBox();
             this.viewData = new War3Trainer.ListViewEx();
             this.colName = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
@@ -77,6 +85,8 @@
             this.splitMain.Panel1.SuspendLayout();
             this.splitMain.Panel2.SuspendLayout();
             this.splitMain.SuspendLayout();
+            this.grpAbilityCommand.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.numAbilityLevel)).BeginInit();
             this.SuspendLayout();
             // 
             // toolContainer
@@ -357,6 +367,7 @@
             // 
             // splitMain.Panel2
             // 
+            this.splitMain.Panel2.Controls.Add(this.grpAbilityCommand);
             this.splitMain.Panel2.Controls.Add(this.txtInput);
             this.splitMain.Panel2.Controls.Add(this.viewData);
             this.splitMain.Size = new System.Drawing.Size(684, 658);
@@ -380,6 +391,105 @@
             this.viewFunctions.BeforeSelect += new System.Windows.Forms.TreeViewCancelEventHandler(this.viewFunctions_BeforeSelect);
             this.viewFunctions.KeyDown += new System.Windows.Forms.KeyEventHandler(this.viewFunctions_KeyDown);
             // 
+            // grpAbilityCommand
+            // 
+            this.grpAbilityCommand.Controls.Add(this.labAbilityCommandState);
+            this.grpAbilityCommand.Controls.Add(this.cmdRemoveAbility);
+            this.grpAbilityCommand.Controls.Add(this.cmdAddAbility);
+            this.grpAbilityCommand.Controls.Add(this.numAbilityLevel);
+            this.grpAbilityCommand.Controls.Add(this.labAbilityLevel);
+            this.grpAbilityCommand.Controls.Add(this.cboAbilityId);
+            this.grpAbilityCommand.Controls.Add(this.labAbilityId);
+            this.grpAbilityCommand.Font = new System.Drawing.Font("微软雅黑", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
+            this.grpAbilityCommand.Location = new System.Drawing.Point(0, 0);
+            this.grpAbilityCommand.Margin = new System.Windows.Forms.Padding(4);
+            this.grpAbilityCommand.Name = "grpAbilityCommand";
+            this.grpAbilityCommand.Padding = new System.Windows.Forms.Padding(4);
+            this.grpAbilityCommand.Size = new System.Drawing.Size(404, 92);
+            this.grpAbilityCommand.TabIndex = 11;
+            this.grpAbilityCommand.TabStop = false;
+            this.grpAbilityCommand.Text = "JASS技能";
+            // 
+            // labAbilityCommandState
+            // 
+            this.labAbilityCommandState.AutoSize = true;
+            this.labAbilityCommandState.Location = new System.Drawing.Point(9, 61);
+            this.labAbilityCommandState.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.labAbilityCommandState.Name = "labAbilityCommandState";
+            this.labAbilityCommandState.Size = new System.Drawing.Size(219, 20);
+            this.labAbilityCommandState.TabIndex = 6;
+            this.labAbilityCommandState.Text = "选择技能，代码中可继续添加";
+            // 
+            // cmdRemoveAbility
+            // 
+            this.cmdRemoveAbility.Location = new System.Drawing.Point(318, 24);
+            this.cmdRemoveAbility.Margin = new System.Windows.Forms.Padding(4);
+            this.cmdRemoveAbility.Name = "cmdRemoveAbility";
+            this.cmdRemoveAbility.Size = new System.Drawing.Size(78, 29);
+            this.cmdRemoveAbility.TabIndex = 5;
+            this.cmdRemoveAbility.Text = "删除";
+            this.cmdRemoveAbility.UseVisualStyleBackColor = true;
+            this.cmdRemoveAbility.Click += new System.EventHandler(this.cmdRemoveAbility_Click);
+            // 
+            // cmdAddAbility
+            // 
+            this.cmdAddAbility.Location = new System.Drawing.Point(232, 24);
+            this.cmdAddAbility.Margin = new System.Windows.Forms.Padding(4);
+            this.cmdAddAbility.Name = "cmdAddAbility";
+            this.cmdAddAbility.Size = new System.Drawing.Size(78, 29);
+            this.cmdAddAbility.TabIndex = 4;
+            this.cmdAddAbility.Text = "添加";
+            this.cmdAddAbility.UseVisualStyleBackColor = true;
+            this.cmdAddAbility.Click += new System.EventHandler(this.cmdAddAbility_Click);
+            // 
+            // numAbilityLevel
+            // 
+            this.numAbilityLevel.Location = new System.Drawing.Point(175, 25);
+            this.numAbilityLevel.Margin = new System.Windows.Forms.Padding(4);
+            this.numAbilityLevel.Minimum = new decimal(new int[] {
+            1,
+            0,
+            0,
+            0});
+            this.numAbilityLevel.Name = "numAbilityLevel";
+            this.numAbilityLevel.Size = new System.Drawing.Size(49, 27);
+            this.numAbilityLevel.TabIndex = 3;
+            this.numAbilityLevel.Value = new decimal(new int[] {
+            100,
+            0,
+            0,
+            0});
+            // 
+            // labAbilityLevel
+            // 
+            this.labAbilityLevel.AutoSize = true;
+            this.labAbilityLevel.Location = new System.Drawing.Point(132, 28);
+            this.labAbilityLevel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.labAbilityLevel.Name = "labAbilityLevel";
+            this.labAbilityLevel.Size = new System.Drawing.Size(39, 20);
+            this.labAbilityLevel.TabIndex = 2;
+            this.labAbilityLevel.Text = "等级";
+            // 
+            // cboAbilityId
+            // 
+            this.cboAbilityId.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cboAbilityId.FormattingEnabled = true;
+            this.cboAbilityId.Location = new System.Drawing.Point(59, 25);
+            this.cboAbilityId.Margin = new System.Windows.Forms.Padding(4);
+            this.cboAbilityId.Name = "cboAbilityId";
+            this.cboAbilityId.Size = new System.Drawing.Size(65, 28);
+            this.cboAbilityId.TabIndex = 1;
+            // 
+            // labAbilityId
+            // 
+            this.labAbilityId.AutoSize = true;
+            this.labAbilityId.Location = new System.Drawing.Point(9, 28);
+            this.labAbilityId.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.labAbilityId.Name = "labAbilityId";
+            this.labAbilityId.Size = new System.Drawing.Size(44, 20);
+            this.labAbilityId.TabIndex = 0;
+            this.labAbilityId.Text = "技能";
+            // 
             // txtInput
             // 
             this.txtInput.Location = new System.Drawing.Point(76, 65);
@@ -400,16 +510,15 @@
             this.colName,
             this.colOriginalValue,
             this.colUnsavedValue});
-            this.viewData.Dock = System.Windows.Forms.DockStyle.Fill;
             this.viewData.Font = new System.Drawing.Font("微软雅黑", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
             this.viewData.FullRowSelect = true;
             this.viewData.GridLines = true;
             this.viewData.HideSelection = false;
-            this.viewData.Location = new System.Drawing.Point(0, 0);
+            this.viewData.Location = new System.Drawing.Point(0, 96);
             this.viewData.Margin = new System.Windows.Forms.Padding(4);
             this.viewData.MultiSelect = false;
             this.viewData.Name = "viewData";
-            this.viewData.Size = new System.Drawing.Size(404, 658);
+            this.viewData.Size = new System.Drawing.Size(404, 562);
             this.viewData.SmallImageList = this.imageList1;
             this.viewData.TabIndex = 9;
             this.viewData.UseCompatibleStateImageBehavior = false;
@@ -466,6 +575,9 @@
             this.splitMain.Panel2.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.splitMain)).EndInit();
             this.splitMain.ResumeLayout(false);
+            this.grpAbilityCommand.ResumeLayout(false);
+            this.grpAbilityCommand.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.numAbilityLevel)).EndInit();
             this.ResumeLayout(false);
 
         }
@@ -510,6 +622,13 @@
         private System.Windows.Forms.ToolStripMenuItem toolStripMenuItem7;
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItem6;
         private System.Windows.Forms.ToolStripMenuItem xToolStripMenuItem3;
+        private System.Windows.Forms.GroupBox grpAbilityCommand;
+        private System.Windows.Forms.Label labAbilityCommandState;
+        private System.Windows.Forms.Button cmdRemoveAbility;
+        private System.Windows.Forms.Button cmdAddAbility;
+        private System.Windows.Forms.NumericUpDown numAbilityLevel;
+        private System.Windows.Forms.Label labAbilityLevel;
+        private System.Windows.Forms.ComboBox cboAbilityId;
+        private System.Windows.Forms.Label labAbilityId;
     }
 }
-

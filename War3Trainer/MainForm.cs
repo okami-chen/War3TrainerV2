@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 
@@ -14,6 +16,7 @@ namespace War3Trainer
         public MainForm()
         {
             InitializeComponent();
+            InitializeAbilityOptions();
         }
 
         private void FrmMain_Load(object sender, EventArgs e)
@@ -84,6 +87,7 @@ namespace War3Trainer
             {
                 viewFunctions.Enabled = true;
                 viewData.Enabled = true;
+                grpAbilityCommand.Enabled = true;
                 toolStripButton2.Enabled = true;
                 toolStripButton1.Enabled = true;
             }
@@ -91,6 +95,7 @@ namespace War3Trainer
             {
                 viewFunctions.Enabled = false;
                 viewData.Enabled = false;
+                grpAbilityCommand.Enabled = false;
                 toolStripButton2.Enabled = false;
                 toolStripButton1.Enabled = false;
             }
@@ -396,8 +401,286 @@ namespace War3Trainer
 
             txtInput.Location = new Point(
                 viewData.Columns[0].Width + viewData.Columns[1].Width,
-                currentItem.Position.Y + 2);
+                viewData.Top + currentItem.Position.Y + 2);
             txtInput.Width = viewData.Columns[2].Width + 2;
+        }
+
+        private void cmdAddAbility_Click(object sender, EventArgs e)
+        {
+            ExecuteAbilityUiCommand(true);
+        }
+
+        private void cmdRemoveAbility_Click(object sender, EventArgs e)
+        {
+            ExecuteAbilityUiCommand(false);
+        }
+
+        private void ExecuteAbilityUiCommand(bool addAbility)
+        {
+            if (_currentGameContext == null)
+            {
+                labAbilityCommandState.Text = "游戏未运行";
+                return;
+            }
+
+            string abilityId = GetSelectedAbilityId();
+            if (!IsValidAbilityId(abilityId))
+            {
+                labAbilityCommandState.Text = "技能ID必须是4位ASCII字符";
+                cboAbilityId.Focus();
+                return;
+            }
+
+            int abilityLevel = Decimal.ToInt32(numAbilityLevel.Value);
+            try
+            {
+                int unitCount = ExecuteRemoteAbilityCommand(abilityId, abilityLevel, addAbility);
+                labAbilityCommandState.Text = addAbility
+                    ? "已添加技能到" + unitCount.ToString() + "个单位"
+                    : "已删除" + unitCount.ToString() + "个单位的技能";
+            }
+            catch (NotSupportedException ex)
+            {
+                labAbilityCommandState.Text = "当前版本未配置函数地址";
+                MessageBox.Show(
+                    ex.Message,
+                    "JASS技能",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            catch (WindowsApi.BadProcessIdException ex)
+            {
+                labAbilityCommandState.Text = "游戏进程不可用";
+                ReportProcessIdFailure(ex.ProcessId);
+            }
+            catch (InvalidOperationException ex)
+            {
+                labAbilityCommandState.Text = ex.Message;
+                MessageBox.Show(
+                    ex.Message,
+                    "JASS技能",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+        }
+
+        private static bool IsValidAbilityId(string abilityId)
+        {
+            if (abilityId.Length != 4)
+                return false;
+
+            foreach (char c in abilityId)
+            {
+                if (c < 0x20 || c > 0x7E)
+                    return false;
+            }
+            return true;
+        }
+
+        private void InitializeAbilityOptions()
+        {
+            cboAbilityId.DisplayMember = "Name";
+            cboAbilityId.ValueMember = "Id";
+
+            string skillsFilePath = Path.Combine(Application.StartupPath, "skills.ini");
+            EnsureDefaultSkillsFile(skillsFilePath);
+            LoadAbilityOptions(skillsFilePath);
+
+            if (cboAbilityId.Items.Count > 0)
+                cboAbilityId.SelectedIndex = 0;
+        }
+
+        private void EnsureDefaultSkillsFile(string skillsFilePath)
+        {
+            if (File.Exists(skillsFilePath))
+                return;
+
+            File.WriteAllLines(
+                skillsFilePath,
+                new string[]
+                {
+                    "AHbz 再起",
+                    "AHba 魅心"
+                });
+        }
+
+        private void LoadAbilityOptions(string skillsFilePath)
+        {
+            cboAbilityId.Items.Clear();
+
+            foreach (string rawLine in File.ReadAllLines(skillsFilePath))
+            {
+                string line = rawLine.Trim();
+                if (String.IsNullOrEmpty(line) || line.StartsWith("#"))
+                    continue;
+
+                string[] parts = line.Split(new char[] { ' ', '\t' }, 2, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length < 2 || !IsValidAbilityId(parts[0]))
+                    continue;
+
+                cboAbilityId.Items.Add(new AbilityOption(parts[1].Trim(), parts[0]));
+            }
+        }
+
+        private string GetSelectedAbilityId()
+        {
+            AbilityOption selectedAbility = cboAbilityId.SelectedItem as AbilityOption;
+            if (selectedAbility == null)
+                return String.Empty;
+
+            return selectedAbility.Id;
+        }
+
+        private sealed class AbilityOption
+        {
+            public string Name { get; private set; }
+            public string Id { get; private set; }
+
+            public AbilityOption(string name, string id)
+            {
+                Name = name;
+                Id = id;
+            }
+
+            public override string ToString()
+            {
+                return Name;
+            }
+        }
+
+        private int ExecuteRemoteAbilityCommand(string abilityId, int abilityLevel, bool addAbility)
+        {
+            EnsureAbilityFunctionAddress(addAbility);
+
+            List<UInt32> selectedUnits = GetSelectedUnitAddresses();
+            if (selectedUnits.Count == 0)
+                throw new InvalidOperationException("没有选中的单位");
+
+            UInt32 abilityIdValue = AbilityIdToUInt32(abilityId);
+            using (WindowsApi.ProcessMemory mem = new WindowsApi.ProcessMemory(_currentGameContext.ProcessId))
+            {
+                foreach (UInt32 unitAddress in selectedUnits)
+                {
+                    if (addAbility)
+                    {
+                        ExecuteThisCall(
+                            mem,
+                            _currentGameContext.UnitAddAbilityAddress,
+                            unitAddress,
+                            new UInt32[] { abilityIdValue });
+                        ExecuteThisCall(
+                            mem,
+                            _currentGameContext.UnitSetAbilityLevelAddress,
+                            unitAddress,
+                            new UInt32[] { abilityIdValue, unchecked((UInt32)abilityLevel) });
+                    }
+                    else
+                    {
+                        ExecuteThisCall(
+                            mem,
+                            _currentGameContext.UnitRemoveAbilityAddress,
+                            unitAddress,
+                            new UInt32[] { abilityIdValue });
+                    }
+                }
+            }
+
+            return selectedUnits.Count;
+        }
+
+        private void EnsureAbilityFunctionAddress(bool addAbility)
+        {
+            if (addAbility)
+            {
+                if (_currentGameContext.UnitAddAbilityAddress == 0
+                    || _currentGameContext.UnitSetAbilityLevelAddress == 0)
+                {
+                    throw new NotSupportedException(
+                        "当前游戏版本没有配置UnitAddAbility/SetAbilityLevel函数地址。\r\n\r\n"
+                        + "请在GameContext.GetAbilityFunctionAddress()里填写当前版本game.dll对应地址后再使用。");
+                }
+            }
+            else
+            {
+                if (_currentGameContext.UnitRemoveAbilityAddress == 0)
+                {
+                    throw new NotSupportedException(
+                        "当前游戏版本没有配置UnitRemoveAbility函数地址。\r\n\r\n"
+                        + "请在GameContext.GetAbilityFunctionAddress()里填写当前版本game.dll对应地址后再使用。");
+                }
+            }
+        }
+
+        private List<UInt32> GetSelectedUnitAddresses()
+        {
+            List<UInt32> selectedUnits = new List<UInt32>();
+            using (WindowsApi.ProcessMemory mem = new WindowsApi.ProcessMemory(_currentGameContext.ProcessId))
+            {
+                UInt32 selectedUnitList = mem.ReadUInt32((IntPtr)_currentGameContext.UnitListAddress);
+                if (selectedUnitList == 0)
+                    return selectedUnits;
+
+                UInt16 a2 = mem.ReadUInt16((IntPtr)unchecked(selectedUnitList + 0x28));
+                UInt32 listAddress = mem.ReadUInt32((IntPtr)unchecked(selectedUnitList + 0x58 + 4 * a2));
+                listAddress = mem.ReadUInt32((IntPtr)unchecked(listAddress + 0x34));
+                if (listAddress == 0)
+                    return selectedUnits;
+
+                UInt32 nextNode = mem.ReadUInt32((IntPtr)unchecked(listAddress + 0x1F0));
+                UInt32 listLength = mem.ReadUInt32((IntPtr)unchecked(listAddress + 0x1F8));
+                for (UInt32 itemIndex = 0; itemIndex < listLength; itemIndex++)
+                {
+                    if (nextNode == 0)
+                        break;
+
+                    UInt32 unitAddress = mem.ReadUInt32((IntPtr)unchecked(nextNode + 8));
+                    if (unitAddress != 0)
+                        selectedUnits.Add(unitAddress);
+
+                    nextNode = mem.ReadUInt32((IntPtr)unchecked(nextNode + 0));
+                }
+            }
+            return selectedUnits;
+        }
+
+        private static UInt32 AbilityIdToUInt32(string abilityId)
+        {
+            return unchecked(
+                ((UInt32)(byte)abilityId[0] << 24)
+                | ((UInt32)(byte)abilityId[1] << 16)
+                | ((UInt32)(byte)abilityId[2] << 8)
+                | (UInt32)(byte)abilityId[3]);
+        }
+
+        private static void ExecuteThisCall(
+            WindowsApi.ProcessMemory mem,
+            UInt32 functionAddress,
+            UInt32 thisAddress,
+            UInt32[] args)
+        {
+            List<byte> code = new List<byte>();
+
+            // mov ecx, thisAddress
+            code.Add(0xB9);
+            code.AddRange(BitConverter.GetBytes(thisAddress));
+
+            for (int i = args.Length - 1; i >= 0; i--)
+            {
+                // push arg
+                code.Add(0x68);
+                code.AddRange(BitConverter.GetBytes(args[i]));
+            }
+
+            // mov eax, functionAddress
+            code.Add(0xB8);
+            code.AddRange(BitConverter.GetBytes(functionAddress));
+
+            // call eax; ret
+            code.Add(0xFF);
+            code.Add(0xD0);
+            code.Add(0xC3);
+
+            mem.ExecuteRemoteCode(code.ToArray());
         }
 
         private void viewData_KeyPress(object sender, KeyPressEventArgs e)

@@ -98,6 +98,50 @@ namespace War3Trainer.WindowsApi
             UIntPtr size,
             out UIntPtr numberOfBytesWritten);
 
+        [DllImport("kernel32.dll", SetLastError = true)]
+        internal static extern IntPtr VirtualAllocEx(
+            SafeProcessHandle processHandle,
+            IntPtr address,
+            UIntPtr size,
+            UInt32 allocationType,
+            UInt32 protect);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool VirtualFreeEx(
+            SafeProcessHandle processHandle,
+            IntPtr address,
+            UIntPtr size,
+            UInt32 freeType);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        internal static extern IntPtr CreateRemoteThread(
+            SafeProcessHandle processHandle,
+            IntPtr threadAttributes,
+            UInt32 stackSize,
+            IntPtr startAddress,
+            IntPtr parameter,
+            UInt32 creationFlags,
+            out UInt32 threadId);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        internal static extern UInt32 WaitForSingleObject(
+            IntPtr handle,
+            UInt32 milliseconds);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool GetExitCodeThread(
+            IntPtr threadHandle,
+            out UInt32 exitCode);
+
+        internal const UInt32 MEM_COMMIT = 0x00001000;
+        internal const UInt32 MEM_RESERVE = 0x00002000;
+        internal const UInt32 MEM_RELEASE = 0x00008000;
+        internal const UInt32 PAGE_EXECUTE_READWRITE = 0x40;
+        internal const UInt32 WAIT_OBJECT_0 = 0;
+        internal const UInt32 INFINITE = 0xFFFFFFFF;
+
         //////////////////////////////////////////////////////////////////////////
         // Process modules
         [DllImport("psapi.dll")]
@@ -250,6 +294,81 @@ namespace War3Trainer.WindowsApi
                 out apiBytesWriten);
 
             bytesWriten = (int)apiBytesWriten;
+        }
+
+        [SecurityPermission(SecurityAction.LinkDemand, UnmanagedCode = true)]
+        public IntPtr AllocateExecutableMemory(int size)
+        {
+            IntPtr address = NativeMethods.VirtualAllocEx(
+                _processHandle,
+                IntPtr.Zero,
+                (UIntPtr)size,
+                NativeMethods.MEM_COMMIT | NativeMethods.MEM_RESERVE,
+                NativeMethods.PAGE_EXECUTE_READWRITE);
+
+            if (address == IntPtr.Zero)
+                throw new InvalidOperationException("Failed to allocate remote memory");
+
+            return address;
+        }
+
+        [SecurityPermission(SecurityAction.LinkDemand, UnmanagedCode = true)]
+        public void FreeMemory(IntPtr address)
+        {
+            if (address == IntPtr.Zero)
+                return;
+
+            NativeMethods.VirtualFreeEx(
+                _processHandle,
+                address,
+                UIntPtr.Zero,
+                NativeMethods.MEM_RELEASE);
+        }
+
+        [SecurityPermission(SecurityAction.LinkDemand, UnmanagedCode = true)]
+        public UInt32 ExecuteRemoteCode(byte[] code)
+        {
+            IntPtr remoteCode = IntPtr.Zero;
+            IntPtr threadHandle = IntPtr.Zero;
+            try
+            {
+                remoteCode = AllocateExecutableMemory(code.Length);
+
+                int bytesWriten;
+                WriteBytes(code, remoteCode, code.Length, out bytesWriten);
+                if (bytesWriten != code.Length)
+                    throw new InvalidOperationException("Failed to write remote code");
+
+                UInt32 threadId;
+                threadHandle = NativeMethods.CreateRemoteThread(
+                    _processHandle,
+                    IntPtr.Zero,
+                    0,
+                    remoteCode,
+                    IntPtr.Zero,
+                    0,
+                    out threadId);
+                if (threadHandle == IntPtr.Zero)
+                    throw new InvalidOperationException("Failed to create remote thread");
+
+                UInt32 waitResult = NativeMethods.WaitForSingleObject(
+                    threadHandle,
+                    NativeMethods.INFINITE);
+                if (waitResult != NativeMethods.WAIT_OBJECT_0)
+                    throw new InvalidOperationException("Remote thread wait failed");
+
+                UInt32 exitCode;
+                if (!NativeMethods.GetExitCodeThread(threadHandle, out exitCode))
+                    throw new InvalidOperationException("Failed to get remote thread result");
+
+                return exitCode;
+            }
+            finally
+            {
+                if (threadHandle != IntPtr.Zero)
+                    NativeMethods.CloseHandle(threadHandle);
+                FreeMemory(remoteCode);
+            }
         }
 
         #endregion

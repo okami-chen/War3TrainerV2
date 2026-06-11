@@ -18,7 +18,7 @@ namespace War3Trainer
         OneSelectedUnit,
         AttackAttributes,
         HeroAttributes,
-        //UnitAbility,  // Not implemented yet
+        UnitAbility,
         AllItems,
         OneItem,
     }
@@ -275,9 +275,9 @@ namespace War3Trainer
                     case TrainerNodeType.HeroAttributes:
                         newNode = new HeroAttributesNode(newNodeIndex, _gameContext, e);
                         break;
-                    // case TrainerNodeType.UnitAbility:
-                    //    newNode = new UnitAbilityNode(newNodeIndex, _gameContext, e);
-                    //    break;
+                    case TrainerNodeType.UnitAbility:
+                        newNode = new UnitAbilityNode(newNodeIndex, _gameContext, e);
+                        break;
                     case TrainerNodeType.AllItems:
                         newNode = new AllItemsNode(newNodeIndex, _gameContext, e);
                         break;
@@ -499,7 +499,7 @@ namespace War3Trainer
                 if (_newChildrenArgs.AttackAttributesAddress > 0)
                 {
                     base.CreateChild(TrainerNodeType.AttackAttributes, NodeIndex);
-                    // base.CreateChild(TrainerNodeType.UnitAbility, NodeIndex);
+                    base.CreateChild(TrainerNodeType.UnitAbility, NodeIndex);
                     base.CreateChild(TrainerNodeType.AllItems, NodeIndex);
                 }
 
@@ -792,7 +792,7 @@ namespace War3Trainer
             }
         }
     }
-   /*
+
     class UnitAbilityNode
         : TrainerNode, ITrainerNode
     {
@@ -802,16 +802,40 @@ namespace War3Trainer
         public int NodeIndex { get { return _nodeIndex; } }
         public int ParentIndex { get { return _parentIndex; } }
 
-        public NodeUnitAbility(int nodeIndex, clsGameContext gameContext, NewChildrenEventArgs args)
+        public UnitAbilityNode(int nodeIndex, GameContext gameContext, NewChildrenEventArgs args)
             : base(nodeIndex, gameContext, args)
         {
         }
 
         public override void CreateChildren()
         {
+            UInt32 moveAbilityIndexAddress = unchecked(_newChildrenArgs.ThisUnitAddress + _gameContext.MoveSpeedOffset);
+
+            using (WindowsApi.ProcessMemory mem = new WindowsApi.ProcessMemory(_gameContext.ProcessId))
+            {
+                Int32 moveAbilityIndex = mem.ReadInt32((IntPtr)moveAbilityIndexAddress);
+                if (moveAbilityIndex <= 0)
+                    return;
+
+                UInt32 moveAbilityAddress = War3Common.ReadGameValue2(
+                    mem, _gameContext, _newChildrenArgs,
+                    moveAbilityIndex);
+                if (moveAbilityAddress == 0)
+                    return;
+
+                CreateAddress(new NewAddressListEventArgs(_nodeIndex,
+                    "移动速度",
+                    unchecked(moveAbilityAddress + 0x70),
+                    AddressListValueType.Float));
+                CreateAddress(new NewAddressListEventArgs(_nodeIndex,
+                    "移动速度比值",
+                    unchecked(moveAbilityAddress + 0x78),
+                    AddressListValueType.Float));
+            }
         }
     
-    }*/
+    }
+
     class AllItemsNode
         : TrainerNode, ITrainerNode
     {
