@@ -499,14 +499,9 @@ namespace War3Trainer
             ExecuteAbilityGroupUiCommand("天赋", false);
         }
 
-        private void cmdDetectPlayer_Click(object sender, EventArgs e)
-        {
-            DetectSelectedUnitPlayer();
-        }
-
         private void cmdKillPlayerUnits_Click(object sender, EventArgs e)
         {
-            ExecuteKillPlayerUnitsUiCommand();
+            ExecuteKillSelectedUnitCampUiCommand();
         }
 
         private void cboAbilityGroup_SelectedIndexChanged(object sender, EventArgs e)
@@ -721,10 +716,8 @@ namespace War3Trainer
             cmdRemoveGroupAbility.Enabled = enabled;
             cmdAddGroupTalent.Enabled = enabled;
             cmdRemoveGroupTalent.Enabled = enabled;
-            cmdDetectPlayer.Enabled = enabled;
             cmdKillPlayerUnits.Enabled = enabled;
             cboAbilityGroup.Enabled = !running;
-            cboKillPlayer.Enabled = !running;
             cmdScanGame.Enabled = !running;
         }
 
@@ -766,10 +759,6 @@ namespace War3Trainer
             cboAbilityId.DisplayMember = "Name";
             cboAbilityId.ValueMember = "Id";
             cboAbilityGroup.DisplayMember = "Name";
-            cboKillPlayer.Items.Clear();
-            for (int playerIndex = 1; playerIndex <= 12; playerIndex++)
-                cboKillPlayer.Items.Add("玩家" + playerIndex.ToString());
-            cboKillPlayer.SelectedIndex = 0;
 
             string skillsFilePath = GetConfigFilePath("skills.ini");
             EnsureDefaultSkillsFile(skillsFilePath);
@@ -1097,62 +1086,7 @@ namespace War3Trainer
             return selectedUnits;
         }
 
-        private void DetectSelectedUnitPlayer()
-        {
-            if (_currentGameContext == null)
-            {
-                labAbilityCommandState.Text = "游戏未运行";
-                return;
-            }
-
-            try
-            {
-                List<UInt32> selectedUnits = GetSelectedUnitAddresses();
-                if (selectedUnits.Count == 0)
-                    throw new InvalidOperationException("没有选中的单位");
-
-                using (WindowsApi.ProcessMemory mem = new WindowsApi.ProcessMemory(_currentGameContext.ProcessId))
-                {
-                    UInt32 jassHandle;
-                    if (!TryGetJassUnitHandle(mem, selectedUnits[0], out jassHandle))
-                        throw new InvalidOperationException("无法获取选中单位的JASS handle");
-
-                    int playerId = ExecuteJassGetPlayerId(
-                        mem,
-                        ExecuteJassGetOwningPlayer(mem, jassHandle));
-                    if (playerId < 0 || playerId >= cboKillPlayer.Items.Count)
-                        throw new InvalidOperationException("选中单位玩家ID异常: " + playerId.ToString());
-
-                    cboKillPlayer.SelectedIndex = playerId;
-                    labAbilityCommandState.Text = "选中单位属于玩家" + (playerId + 1).ToString();
-                }
-            }
-            catch (NotSupportedException ex)
-            {
-                labAbilityCommandState.Text = "当前版本未配置玩家JASS函数地址";
-                MessageBox.Show(
-                    ex.Message,
-                    "检测玩家",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
-            }
-            catch (WindowsApi.BadProcessIdException ex)
-            {
-                labAbilityCommandState.Text = "游戏进程不可用";
-                ReportProcessIdFailure(ex.ProcessId);
-            }
-            catch (InvalidOperationException ex)
-            {
-                labAbilityCommandState.Text = ex.Message;
-                MessageBox.Show(
-                    ex.Message,
-                    "检测玩家",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning);
-            }
-        }
-
-        private void ExecuteKillPlayerUnitsUiCommand()
+        private void ExecuteKillSelectedUnitCampUiCommand()
         {
             if (_abilityGroupCommandRunning)
             {
@@ -1166,25 +1100,41 @@ namespace War3Trainer
                 return;
             }
 
-            if (cboKillPlayer.SelectedIndex < 0)
+            int playerId;
+            try
             {
-                labAbilityCommandState.Text = "请选择玩家";
+                playerId = GetSelectedUnitOwnerPlayerId();
+            }
+            catch (NotSupportedException ex)
+            {
+                labAbilityCommandState.Text = "当前版本未配置阵营JASS函数地址";
+                MessageBox.Show(
+                    ex.Message,
+                    "秒杀阵营",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                return;
+            }
+            catch (WindowsApi.BadProcessIdException ex)
+            {
+                labAbilityCommandState.Text = "游戏进程不可用";
+                ReportProcessIdFailure(ex.ProcessId);
+                return;
+            }
+            catch (InvalidOperationException ex)
+            {
+                labAbilityCommandState.Text = ex.Message;
+                MessageBox.Show(
+                    ex.Message,
+                    "秒杀阵营",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
                 return;
             }
 
-            int playerId = cboKillPlayer.SelectedIndex;
-            string playerName = "玩家" + (playerId + 1).ToString();
-            DialogResult confirmResult = MessageBox.Show(
-                "确定秒杀" + playerName + "的所有单位？\r\n\r\n请先选中敌方单位点“检测玩家”确认编号。",
-                "秒杀单位",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Warning,
-                MessageBoxDefaultButton.Button2);
-            if (confirmResult != DialogResult.Yes)
-                return;
-
+            string campName = "玩家" + (playerId + 1).ToString();
             SetAbilityGroupCommandRunning(true);
-            labAbilityCommandState.Text = "正在扫描并秒杀" + playerName + "单位...";
+            labAbilityCommandState.Text = "正在秒杀" + campName + "阵营单位...";
 
             ThreadPool.QueueUserWorkItem(delegate
             {
@@ -1193,17 +1143,17 @@ namespace War3Trainer
                     int killedCount = KillUnitsOfPlayer(playerId);
                     RunOnUiThread(delegate
                     {
-                        labAbilityCommandState.Text = "已秒杀" + playerName + "的" + killedCount.ToString() + "个单位";
+                        labAbilityCommandState.Text = "已秒杀" + campName + "阵营" + killedCount.ToString() + "个单位";
                     });
                 }
                 catch (NotSupportedException ex)
                 {
                     RunOnUiThread(delegate
                     {
-                        labAbilityCommandState.Text = "当前版本未配置玩家JASS函数地址";
+                        labAbilityCommandState.Text = "当前版本未配置阵营JASS函数地址";
                         MessageBox.Show(
                             ex.Message,
-                            "秒杀单位",
+                            "秒杀阵营",
                             MessageBoxButtons.OK,
                             MessageBoxIcon.Information);
                     });
@@ -1220,10 +1170,10 @@ namespace War3Trainer
                 {
                     RunOnUiThread(delegate
                     {
-                        labAbilityCommandState.Text = "秒杀单位失败";
+                        labAbilityCommandState.Text = "秒杀阵营失败";
                         MessageBox.Show(
                             ex.Message,
-                            "秒杀单位",
+                            "秒杀阵营",
                             MessageBoxButtons.OK,
                             MessageBoxIcon.Error);
                     });
@@ -1236,6 +1186,72 @@ namespace War3Trainer
                     });
                 }
             });
+        }
+
+        private int GetSelectedUnitOwnerPlayerId()
+        {
+            EnsureJassPlayerFunctionAddress(false);
+
+            List<UInt32> selectedUnits = GetSelectedUnitAddresses();
+            if (selectedUnits.Count == 0)
+                throw new InvalidOperationException("没有选中的单位");
+
+            using (WindowsApi.ProcessMemory mem = new WindowsApi.ProcessMemory(_currentGameContext.ProcessId))
+            {
+                UInt32 jassHandle;
+                if (!TryGetJassUnitHandle(mem, selectedUnits[0], out jassHandle))
+                    throw new InvalidOperationException("无法获取选中单位的JASS handle");
+
+                UInt32 ownerHandle = ExecuteJassGetOwningPlayer(mem, jassHandle);
+                if (ownerHandle == 0)
+                    throw new InvalidOperationException("无法获取选中单位所属阵营");
+
+                int playerId = ExecuteJassGetPlayerId(mem, ownerHandle);
+                if (playerId < 0 || playerId >= 12)
+                    throw new InvalidOperationException("选中单位阵营ID异常: " + playerId.ToString());
+
+                return playerId;
+            }
+        }
+
+        private int KillSelectedUnits()
+        {
+            EnsureJassKillUnitFunctionAddress();
+
+            List<UInt32> selectedUnits = GetSelectedUnitAddresses();
+            if (selectedUnits.Count == 0)
+                throw new InvalidOperationException("没有选中的单位");
+
+            int killedCount = 0;
+            using (WindowsApi.ProcessMemory mem = new WindowsApi.ProcessMemory(_currentGameContext.ProcessId))
+            {
+                foreach (UInt32 unitAddress in selectedUnits)
+                {
+                    UInt32 jassHandle;
+                    if (!TryGetJassUnitHandle(mem, unitAddress, out jassHandle))
+                        throw new InvalidOperationException("无法获取选中单位的JASS handle");
+
+                    ExecuteJassKillUnit(mem, jassHandle);
+                    killedCount++;
+                    Thread.Sleep(10);
+                }
+            }
+
+            return killedCount;
+        }
+
+        private void EnsureJassKillUnitFunctionAddress()
+        {
+            if (_currentGameContext.JassStateGlobalAddress == 0
+                || _currentGameContext.JassGetManagerAddress == 0
+                || (_currentGameContext.JassGetAgentByObjectAddress == 0
+                    && _currentGameContext.JassHandleToUnitAddress == 0)
+                || _currentGameContext.JassKillUnitAddress == 0)
+            {
+                throw new NotSupportedException(
+                    "当前游戏版本没有配置完整的KillUnit/JASS handle函数地址。\r\n\r\n"
+                    + "1.27a已从当前Game.dll填入；其他版本需要继续反汇编对应game.dll后填写。");
+            }
         }
 
         private int KillUnitsOfPlayer(int playerId)
@@ -1516,7 +1532,7 @@ namespace War3Trainer
             WindowsApi.ProcessMemory mem,
             UInt32 jassHandle)
         {
-            EnsureJassPlayerFunctionAddress(true);
+            EnsureJassKillUnitFunctionAddress();
 
             RemoteCodeBuilder code = new RemoteCodeBuilder();
             code.Push(jassHandle);

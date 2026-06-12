@@ -67,9 +67,6 @@
             this.grpAbilityCommand = new System.Windows.Forms.GroupBox();
             this.labAbilityCommandState = new System.Windows.Forms.Label();
             this.cmdKillPlayerUnits = new System.Windows.Forms.Button();
-            this.cmdDetectPlayer = new System.Windows.Forms.Button();
-            this.cboKillPlayer = new System.Windows.Forms.ComboBox();
-            this.labKillPlayer = new System.Windows.Forms.Label();
             this.cmdRemoveGroupTalent = new System.Windows.Forms.Button();
             this.cmdAddGroupTalent = new System.Windows.Forms.Button();
             this.cmdRemoveGroupAbility = new System.Windows.Forms.Button();
@@ -416,9 +413,6 @@
             // 
             this.grpAbilityCommand.Controls.Add(this.labAbilityCommandState);
             this.grpAbilityCommand.Controls.Add(this.cmdKillPlayerUnits);
-            this.grpAbilityCommand.Controls.Add(this.cmdDetectPlayer);
-            this.grpAbilityCommand.Controls.Add(this.cboKillPlayer);
-            this.grpAbilityCommand.Controls.Add(this.labKillPlayer);
             this.grpAbilityCommand.Controls.Add(this.cmdRemoveGroupTalent);
             this.grpAbilityCommand.Controls.Add(this.cmdAddGroupTalent);
             this.grpAbilityCommand.Controls.Add(this.cmdRemoveGroupAbility);
@@ -456,45 +450,14 @@
             //
             // cmdKillPlayerUnits
             //
-            this.cmdKillPlayerUnits.Location = new System.Drawing.Point(232, 243);
+            this.cmdKillPlayerUnits.Location = new System.Drawing.Point(13, 243);
             this.cmdKillPlayerUnits.Margin = new System.Windows.Forms.Padding(4);
             this.cmdKillPlayerUnits.Name = "cmdKillPlayerUnits";
-            this.cmdKillPlayerUnits.Size = new System.Drawing.Size(164, 29);
+            this.cmdKillPlayerUnits.Size = new System.Drawing.Size(211, 29);
             this.cmdKillPlayerUnits.TabIndex = 19;
-            this.cmdKillPlayerUnits.Text = "秒杀该玩家单位";
+            this.cmdKillPlayerUnits.Text = "秒杀阵营";
             this.cmdKillPlayerUnits.UseVisualStyleBackColor = true;
             this.cmdKillPlayerUnits.Click += new System.EventHandler(this.cmdKillPlayerUnits_Click);
-            //
-            // cmdDetectPlayer
-            //
-            this.cmdDetectPlayer.Location = new System.Drawing.Point(127, 243);
-            this.cmdDetectPlayer.Margin = new System.Windows.Forms.Padding(4);
-            this.cmdDetectPlayer.Name = "cmdDetectPlayer";
-            this.cmdDetectPlayer.Size = new System.Drawing.Size(97, 29);
-            this.cmdDetectPlayer.TabIndex = 18;
-            this.cmdDetectPlayer.Text = "检测玩家";
-            this.cmdDetectPlayer.UseVisualStyleBackColor = true;
-            this.cmdDetectPlayer.Click += new System.EventHandler(this.cmdDetectPlayer_Click);
-            //
-            // cboKillPlayer
-            //
-            this.cboKillPlayer.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.cboKillPlayer.FormattingEnabled = true;
-            this.cboKillPlayer.Location = new System.Drawing.Point(59, 244);
-            this.cboKillPlayer.Margin = new System.Windows.Forms.Padding(4);
-            this.cboKillPlayer.Name = "cboKillPlayer";
-            this.cboKillPlayer.Size = new System.Drawing.Size(60, 28);
-            this.cboKillPlayer.TabIndex = 17;
-            //
-            // labKillPlayer
-            //
-            this.labKillPlayer.AutoSize = true;
-            this.labKillPlayer.Location = new System.Drawing.Point(9, 248);
-            this.labKillPlayer.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.labKillPlayer.Name = "labKillPlayer";
-            this.labKillPlayer.Size = new System.Drawing.Size(39, 20);
-            this.labKillPlayer.TabIndex = 16;
-            this.labKillPlayer.Text = "玩家";
             //
             // cmdRemoveGroupTalent
             //
@@ -799,9 +762,6 @@
         private System.Windows.Forms.GroupBox grpAbilityCommand;
         private System.Windows.Forms.Label labAbilityCommandState;
         private System.Windows.Forms.Button cmdKillPlayerUnits;
-        private System.Windows.Forms.Button cmdDetectPlayer;
-        private System.Windows.Forms.ComboBox cboKillPlayer;
-        private System.Windows.Forms.Label labKillPlayer;
         private System.Windows.Forms.Button cmdRemoveGroupTalent;
         private System.Windows.Forms.Button cmdAddGroupTalent;
         private System.Windows.Forms.Button cmdRemoveGroupAbility;
