@@ -12,11 +12,13 @@ namespace War3Trainer
     {
         private GameContext _currentGameContext;
         private GameTrainer _mainTrainer;
+        private Form _abilityForm;
 
         public MainForm()
         {
             InitializeComponent();
             InitializeAbilityOptions();
+            InitializeAbilityWindow();
         }
 
         private void FrmMain_Load(object sender, EventArgs e)
@@ -349,6 +351,53 @@ namespace War3Trainer
             this.Close();
         }
 
+        private void menuAbility_Click(object sender, EventArgs e)
+        {
+            ShowAbilityWindow();
+        }
+
+        private void InitializeAbilityWindow()
+        {
+            _abilityForm = new Form();
+            _abilityForm.Text = "技能";
+            _abilityForm.FormBorderStyle = FormBorderStyle.FixedDialog;
+            _abilityForm.MaximizeBox = false;
+            _abilityForm.MinimizeBox = false;
+            _abilityForm.ShowInTaskbar = false;
+            _abilityForm.StartPosition = FormStartPosition.Manual;
+            _abilityForm.ClientSize = new Size(grpAbilityCommand.Width, grpAbilityCommand.Height);
+            _abilityForm.FormClosing += abilityForm_FormClosing;
+
+            grpAbilityCommand.Location = new Point(0, 0);
+            grpAbilityCommand.Dock = DockStyle.Fill;
+            _abilityForm.Controls.Add(grpAbilityCommand);
+        }
+
+        private void ShowAbilityWindow()
+        {
+            if (_abilityForm == null || _abilityForm.IsDisposed)
+                InitializeAbilityWindow();
+
+            if (_abilityForm.Visible)
+            {
+                _abilityForm.Activate();
+                return;
+            }
+
+            Point location = this.PointToScreen(new Point(this.Width - _abilityForm.Width - 16, toolContainer.Bottom + 16));
+            _abilityForm.Location = location;
+            _abilityForm.Show(this);
+        }
+
+        private void abilityForm_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            if (e.CloseReason != CloseReason.UserClosing)
+                return;
+
+            e.Cancel = true;
+            _abilityForm.Hide();
+        }
+
         private void cmdScanGame_Click(object sender, EventArgs e)
         {
             FindGame();
@@ -423,6 +472,31 @@ namespace War3Trainer
         private void cmdRemoveTalent_Click(object sender, EventArgs e)
         {
             ExecuteTalentUiCommand(false);
+        }
+
+        private void cmdAddGroupAbility_Click(object sender, EventArgs e)
+        {
+            ExecuteAbilityGroupUiCommand(false, true);
+        }
+
+        private void cmdRemoveGroupAbility_Click(object sender, EventArgs e)
+        {
+            ExecuteAbilityGroupUiCommand(false, false);
+        }
+
+        private void cmdAddGroupTalent_Click(object sender, EventArgs e)
+        {
+            ExecuteAbilityGroupUiCommand(true, true);
+        }
+
+        private void cmdRemoveGroupTalent_Click(object sender, EventArgs e)
+        {
+            ExecuteAbilityGroupUiCommand(true, false);
+        }
+
+        private void cboAbilityGroup_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            LoadSelectedAbilityGroupItems();
         }
 
         private void ExecuteAbilityUiCommand(bool addAbility)
@@ -523,6 +597,59 @@ namespace War3Trainer
             }
         }
 
+        private void ExecuteAbilityGroupUiCommand(bool useJass, bool addAbility)
+        {
+            if (_currentGameContext == null)
+            {
+                labAbilityCommandState.Text = "游戏未运行";
+                return;
+            }
+
+            AbilityGroup group = GetSelectedAbilityGroup();
+            if (group == null || group.Abilities.Count == 0)
+            {
+                labAbilityCommandState.Text = "请选择分组";
+                cboAbilityGroup.Focus();
+                return;
+            }
+
+            int abilityLevel = Decimal.ToInt32(numAbilityLevel.Value);
+            try
+            {
+                int unitCount = useJass
+                    ? ExecuteJassAbilityGroupCommand(group.Abilities, abilityLevel, addAbility)
+                    : ExecuteRemoteAbilityGroupCommand(group.Abilities, abilityLevel, addAbility);
+
+                string targetName = useJass ? "天赋" : "技能";
+                labAbilityCommandState.Text = addAbility
+                    ? "已添加" + group.Name + "的" + group.Abilities.Count.ToString() + "个" + targetName + "到" + unitCount.ToString() + "个单位"
+                    : "已删除" + unitCount.ToString() + "个单位的" + group.Name + targetName;
+            }
+            catch (NotSupportedException ex)
+            {
+                labAbilityCommandState.Text = useJass ? "当前版本未配置JASS函数地址" : "当前版本未配置函数地址";
+                MessageBox.Show(
+                    ex.Message,
+                    useJass ? "JASS天赋" : "JASS技能",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            catch (WindowsApi.BadProcessIdException ex)
+            {
+                labAbilityCommandState.Text = "游戏进程不可用";
+                ReportProcessIdFailure(ex.ProcessId);
+            }
+            catch (InvalidOperationException ex)
+            {
+                labAbilityCommandState.Text = ex.Message;
+                MessageBox.Show(
+                    ex.Message,
+                    useJass ? "JASS天赋" : "JASS技能",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+        }
+
         private static bool IsValidAbilityId(string abilityId)
         {
             if (abilityId.Length != 4)
@@ -540,13 +667,34 @@ namespace War3Trainer
         {
             cboAbilityId.DisplayMember = "Name";
             cboAbilityId.ValueMember = "Id";
+            cboAbilityGroup.DisplayMember = "Name";
 
-            string skillsFilePath = Path.Combine(Application.StartupPath, "skills.ini");
+            string skillsFilePath = GetConfigFilePath("skills.ini");
             EnsureDefaultSkillsFile(skillsFilePath);
             LoadAbilityOptions(skillsFilePath);
 
             if (cboAbilityId.Items.Count > 0)
                 cboAbilityId.SelectedIndex = 0;
+
+            string customFilePath = GetConfigFilePath("custom.ini");
+            EnsureDefaultCustomFile(customFilePath);
+            LoadAbilityGroups(customFilePath);
+
+            if (cboAbilityGroup.Items.Count > 0)
+                cboAbilityGroup.SelectedIndex = 0;
+        }
+
+        private string GetConfigFilePath(string fileName)
+        {
+            string currentDirectoryPath = Path.Combine(Environment.CurrentDirectory, fileName);
+            if (File.Exists(currentDirectoryPath))
+                return currentDirectoryPath;
+
+            string startupPath = Path.Combine(Application.StartupPath, fileName);
+            if (File.Exists(startupPath))
+                return startupPath;
+
+            return currentDirectoryPath;
         }
 
         private void EnsureDefaultSkillsFile(string skillsFilePath)
@@ -560,6 +708,28 @@ namespace War3Trainer
                 {
                     "AHbz 再起",
                     "AHba 魅心"
+                });
+        }
+
+        private void EnsureDefaultCustomFile(string customFilePath)
+        {
+            if (File.Exists(customFilePath))
+                return;
+
+            File.WriteAllLines(
+                customFilePath,
+                new string[]
+                {
+                    "[全肉]",
+                    "A08R 洞察",
+                    "A09E 神佑",
+                    "A05H 不屈",
+                    "A03V 金刚",
+                    "",
+                    "[法师]",
+                    "A08R 洞察",
+                    "A0BS 业炎",
+                    "A05I 法神"
                 });
         }
 
@@ -581,6 +751,48 @@ namespace War3Trainer
             }
         }
 
+        private void LoadAbilityGroups(string customFilePath)
+        {
+            cboAbilityGroup.Items.Clear();
+            lstAbilityGroupItems.Items.Clear();
+
+            AbilityGroup currentGroup = null;
+            foreach (string rawLine in File.ReadAllLines(customFilePath))
+            {
+                string line = rawLine.Trim();
+                if (String.IsNullOrEmpty(line) || line.StartsWith("#") || line.StartsWith(";"))
+                    continue;
+
+                if (line.StartsWith("[") && line.EndsWith("]") && line.Length > 2)
+                {
+                    currentGroup = new AbilityGroup(line.Substring(1, line.Length - 2).Trim());
+                    cboAbilityGroup.Items.Add(currentGroup);
+                    continue;
+                }
+
+                if (currentGroup == null)
+                    continue;
+
+                string[] parts = line.Split(new char[] { ' ', '\t' }, 2, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length < 2 || !IsValidAbilityId(parts[0]))
+                    continue;
+
+                currentGroup.Abilities.Add(new AbilityOption(parts[1].Trim(), parts[0]));
+            }
+        }
+
+        private void LoadSelectedAbilityGroupItems()
+        {
+            lstAbilityGroupItems.Items.Clear();
+
+            AbilityGroup group = GetSelectedAbilityGroup();
+            if (group == null)
+                return;
+
+            foreach (AbilityOption ability in group.Abilities)
+                lstAbilityGroupItems.Items.Add(ability);
+        }
+
         private string GetSelectedAbilityId()
         {
             AbilityOption selectedAbility = cboAbilityId.SelectedItem as AbilityOption;
@@ -588,6 +800,11 @@ namespace War3Trainer
                 return String.Empty;
 
             return selectedAbility.Id;
+        }
+
+        private AbilityGroup GetSelectedAbilityGroup()
+        {
+            return cboAbilityGroup.SelectedItem as AbilityGroup;
         }
 
         private sealed class AbilityOption
@@ -599,6 +816,23 @@ namespace War3Trainer
             {
                 Name = name;
                 Id = id;
+            }
+
+            public override string ToString()
+            {
+                return Id + " " + Name;
+            }
+        }
+
+        private sealed class AbilityGroup
+        {
+            public string Name { get; private set; }
+            public List<AbilityOption> Abilities { get; private set; }
+
+            public AbilityGroup(string name)
+            {
+                Name = name;
+                Abilities = new List<AbilityOption>();
             }
 
             public override string ToString()
@@ -635,6 +869,40 @@ namespace War3Trainer
             return selectedUnits.Count;
         }
 
+        private int ExecuteRemoteAbilityGroupCommand(
+            IList<AbilityOption> abilities,
+            int abilityLevel,
+            bool addAbility)
+        {
+            EnsureAbilityFunctionAddress(addAbility);
+
+            List<UInt32> selectedUnits = GetSelectedUnitAddresses();
+            if (selectedUnits.Count == 0)
+                throw new InvalidOperationException("没有选中的单位");
+
+            using (WindowsApi.ProcessMemory mem = new WindowsApi.ProcessMemory(_currentGameContext.ProcessId))
+            {
+                foreach (UInt32 unitAddress in selectedUnits)
+                {
+                    foreach (AbilityOption ability in abilities)
+                    {
+                        UInt32 abilityIdValue = AbilityIdToUInt32(ability.Id);
+                        if (addAbility)
+                        {
+                            ExecuteAddAbility(mem, unitAddress, abilityIdValue);
+                            ExecuteSetAbilityLevel(mem, unitAddress, abilityIdValue, abilityLevel);
+                        }
+                        else
+                        {
+                            ExecuteRemoveAbility(mem, unitAddress, abilityIdValue);
+                        }
+                    }
+                }
+            }
+
+            return selectedUnits.Count;
+        }
+
         private int ExecuteJassAbilityCommand(string abilityId, int abilityLevel, bool addAbility)
         {
             EnsureJassAbilityFunctionAddress(addAbility);
@@ -660,6 +928,50 @@ namespace War3Trainer
                     else
                     {
                         ExecuteJassRemoveAbility(mem, jassHandle, abilityIdValue);
+                    }
+                }
+            }
+
+            return selectedUnits.Count;
+        }
+
+        private int ExecuteJassAbilityGroupCommand(
+            IList<AbilityOption> abilities,
+            int abilityLevel,
+            bool addAbility)
+        {
+            EnsureJassAbilityFunctionAddress(addAbility);
+
+            List<UInt32> selectedUnits = GetSelectedUnitAddresses();
+            if (selectedUnits.Count == 0)
+                throw new InvalidOperationException("没有选中的单位");
+
+            using (WindowsApi.ProcessMemory mem = new WindowsApi.ProcessMemory(_currentGameContext.ProcessId))
+            {
+                List<UInt32> unitHandles = new List<UInt32>();
+                foreach (UInt32 unitAddress in selectedUnits)
+                {
+                    UInt32 jassHandle;
+                    if (!TryGetJassUnitHandle(mem, unitAddress, out jassHandle))
+                        throw new InvalidOperationException("无法获取选中单位的JASS handle");
+
+                    unitHandles.Add(jassHandle);
+                }
+
+                foreach (UInt32 jassHandle in unitHandles)
+                {
+                    foreach (AbilityOption ability in abilities)
+                    {
+                        UInt32 abilityIdValue = AbilityIdToUInt32(ability.Id);
+                        if (addAbility)
+                        {
+                            ExecuteJassAddAbility(mem, jassHandle, abilityIdValue);
+                            ExecuteJassSetAbilityLevel(mem, jassHandle, abilityIdValue, abilityLevel);
+                        }
+                        else
+                        {
+                            ExecuteJassRemoveAbility(mem, jassHandle, abilityIdValue);
+                        }
                     }
                 }
             }

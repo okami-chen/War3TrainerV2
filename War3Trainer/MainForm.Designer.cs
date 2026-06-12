@@ -43,6 +43,7 @@
             this.menuDebug1 = new System.Windows.Forms.ToolStripMenuItem();
             this.menuSplit1 = new System.Windows.Forms.ToolStripSeparator();
             this.menuFileExit = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuAbility = new System.Windows.Forms.ToolStripMenuItem();
             this.置顶ToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.启用ToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem1 = new System.Windows.Forms.ToolStripSeparator();
@@ -65,6 +66,13 @@
             this.viewFunctions = new System.Windows.Forms.TreeView();
             this.grpAbilityCommand = new System.Windows.Forms.GroupBox();
             this.labAbilityCommandState = new System.Windows.Forms.Label();
+            this.cmdRemoveGroupTalent = new System.Windows.Forms.Button();
+            this.cmdAddGroupTalent = new System.Windows.Forms.Button();
+            this.cmdRemoveGroupAbility = new System.Windows.Forms.Button();
+            this.cmdAddGroupAbility = new System.Windows.Forms.Button();
+            this.lstAbilityGroupItems = new System.Windows.Forms.ListBox();
+            this.cboAbilityGroup = new System.Windows.Forms.ComboBox();
+            this.labAbilityGroup = new System.Windows.Forms.Label();
             this.cmdRemoveTalent = new System.Windows.Forms.Button();
             this.cmdAddTalent = new System.Windows.Forms.Button();
             this.cmdRemoveAbility = new System.Windows.Forms.Button();
@@ -181,6 +189,7 @@
             this.menuMain.ImageScalingSize = new System.Drawing.Size(20, 20);
             this.menuMain.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.menuFile,
+            this.menuAbility,
             this.置顶ToolStripMenuItem,
             this.menuHelp});
             this.menuMain.Location = new System.Drawing.Point(0, 0);
@@ -219,7 +228,14 @@
             this.menuFileExit.Size = new System.Drawing.Size(337, 26);
             this.menuFileExit.Text = "退出(&X)";
             this.menuFileExit.Click += new System.EventHandler(this.MenuFileExit_Click);
-            // 
+            //
+            // menuAbility
+            //
+            this.menuAbility.Name = "menuAbility";
+            this.menuAbility.Size = new System.Drawing.Size(51, 24);
+            this.menuAbility.Text = "技能";
+            this.menuAbility.Click += new System.EventHandler(this.menuAbility_Click);
+            //
             // 置顶ToolStripMenuItem
             // 
             this.置顶ToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
@@ -369,7 +385,6 @@
             // 
             // splitMain.Panel2
             // 
-            this.splitMain.Panel2.Controls.Add(this.grpAbilityCommand);
             this.splitMain.Panel2.Controls.Add(this.txtInput);
             this.splitMain.Panel2.Controls.Add(this.viewData);
             this.splitMain.Size = new System.Drawing.Size(684, 658);
@@ -396,6 +411,13 @@
             // grpAbilityCommand
             // 
             this.grpAbilityCommand.Controls.Add(this.labAbilityCommandState);
+            this.grpAbilityCommand.Controls.Add(this.cmdRemoveGroupTalent);
+            this.grpAbilityCommand.Controls.Add(this.cmdAddGroupTalent);
+            this.grpAbilityCommand.Controls.Add(this.cmdRemoveGroupAbility);
+            this.grpAbilityCommand.Controls.Add(this.cmdAddGroupAbility);
+            this.grpAbilityCommand.Controls.Add(this.lstAbilityGroupItems);
+            this.grpAbilityCommand.Controls.Add(this.cboAbilityGroup);
+            this.grpAbilityCommand.Controls.Add(this.labAbilityGroup);
             this.grpAbilityCommand.Controls.Add(this.cmdRemoveTalent);
             this.grpAbilityCommand.Controls.Add(this.cmdAddTalent);
             this.grpAbilityCommand.Controls.Add(this.cmdRemoveAbility);
@@ -409,7 +431,7 @@
             this.grpAbilityCommand.Margin = new System.Windows.Forms.Padding(4);
             this.grpAbilityCommand.Name = "grpAbilityCommand";
             this.grpAbilityCommand.Padding = new System.Windows.Forms.Padding(4);
-            this.grpAbilityCommand.Size = new System.Drawing.Size(404, 126);
+            this.grpAbilityCommand.Size = new System.Drawing.Size(404, 270);
             this.grpAbilityCommand.TabIndex = 11;
             this.grpAbilityCommand.TabStop = false;
             this.grpAbilityCommand.Text = "JASS技能";
@@ -417,12 +439,87 @@
             // labAbilityCommandState
             // 
             this.labAbilityCommandState.AutoSize = true;
-            this.labAbilityCommandState.Location = new System.Drawing.Point(9, 94);
+            this.labAbilityCommandState.Location = new System.Drawing.Point(9, 244);
             this.labAbilityCommandState.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.labAbilityCommandState.Name = "labAbilityCommandState";
             this.labAbilityCommandState.Size = new System.Drawing.Size(219, 20);
             this.labAbilityCommandState.TabIndex = 6;
             this.labAbilityCommandState.Text = "选择技能，代码中可继续添加";
+            //
+            // cmdRemoveGroupTalent
+            //
+            this.cmdRemoveGroupTalent.Location = new System.Drawing.Point(318, 124);
+            this.cmdRemoveGroupTalent.Margin = new System.Windows.Forms.Padding(4);
+            this.cmdRemoveGroupTalent.Name = "cmdRemoveGroupTalent";
+            this.cmdRemoveGroupTalent.Size = new System.Drawing.Size(78, 29);
+            this.cmdRemoveGroupTalent.TabIndex = 15;
+            this.cmdRemoveGroupTalent.Text = "删组天赋";
+            this.cmdRemoveGroupTalent.UseVisualStyleBackColor = true;
+            this.cmdRemoveGroupTalent.Click += new System.EventHandler(this.cmdRemoveGroupTalent_Click);
+            //
+            // cmdAddGroupTalent
+            //
+            this.cmdAddGroupTalent.Location = new System.Drawing.Point(232, 124);
+            this.cmdAddGroupTalent.Margin = new System.Windows.Forms.Padding(4);
+            this.cmdAddGroupTalent.Name = "cmdAddGroupTalent";
+            this.cmdAddGroupTalent.Size = new System.Drawing.Size(78, 29);
+            this.cmdAddGroupTalent.TabIndex = 14;
+            this.cmdAddGroupTalent.Text = "添组天赋";
+            this.cmdAddGroupTalent.UseVisualStyleBackColor = true;
+            this.cmdAddGroupTalent.Click += new System.EventHandler(this.cmdAddGroupTalent_Click);
+            //
+            // cmdRemoveGroupAbility
+            //
+            this.cmdRemoveGroupAbility.Location = new System.Drawing.Point(318, 91);
+            this.cmdRemoveGroupAbility.Margin = new System.Windows.Forms.Padding(4);
+            this.cmdRemoveGroupAbility.Name = "cmdRemoveGroupAbility";
+            this.cmdRemoveGroupAbility.Size = new System.Drawing.Size(78, 29);
+            this.cmdRemoveGroupAbility.TabIndex = 13;
+            this.cmdRemoveGroupAbility.Text = "删组技能";
+            this.cmdRemoveGroupAbility.UseVisualStyleBackColor = true;
+            this.cmdRemoveGroupAbility.Click += new System.EventHandler(this.cmdRemoveGroupAbility_Click);
+            //
+            // cmdAddGroupAbility
+            //
+            this.cmdAddGroupAbility.Location = new System.Drawing.Point(232, 91);
+            this.cmdAddGroupAbility.Margin = new System.Windows.Forms.Padding(4);
+            this.cmdAddGroupAbility.Name = "cmdAddGroupAbility";
+            this.cmdAddGroupAbility.Size = new System.Drawing.Size(78, 29);
+            this.cmdAddGroupAbility.TabIndex = 12;
+            this.cmdAddGroupAbility.Text = "添组技能";
+            this.cmdAddGroupAbility.UseVisualStyleBackColor = true;
+            this.cmdAddGroupAbility.Click += new System.EventHandler(this.cmdAddGroupAbility_Click);
+            //
+            // lstAbilityGroupItems
+            //
+            this.lstAbilityGroupItems.FormattingEnabled = true;
+            this.lstAbilityGroupItems.ItemHeight = 20;
+            this.lstAbilityGroupItems.Location = new System.Drawing.Point(13, 126);
+            this.lstAbilityGroupItems.Margin = new System.Windows.Forms.Padding(4);
+            this.lstAbilityGroupItems.Name = "lstAbilityGroupItems";
+            this.lstAbilityGroupItems.Size = new System.Drawing.Size(211, 104);
+            this.lstAbilityGroupItems.TabIndex = 11;
+            //
+            // cboAbilityGroup
+            //
+            this.cboAbilityGroup.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cboAbilityGroup.FormattingEnabled = true;
+            this.cboAbilityGroup.Location = new System.Drawing.Point(59, 92);
+            this.cboAbilityGroup.Margin = new System.Windows.Forms.Padding(4);
+            this.cboAbilityGroup.Name = "cboAbilityGroup";
+            this.cboAbilityGroup.Size = new System.Drawing.Size(165, 28);
+            this.cboAbilityGroup.TabIndex = 10;
+            this.cboAbilityGroup.SelectedIndexChanged += new System.EventHandler(this.cboAbilityGroup_SelectedIndexChanged);
+            //
+            // labAbilityGroup
+            //
+            this.labAbilityGroup.AutoSize = true;
+            this.labAbilityGroup.Location = new System.Drawing.Point(9, 95);
+            this.labAbilityGroup.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.labAbilityGroup.Name = "labAbilityGroup";
+            this.labAbilityGroup.Size = new System.Drawing.Size(39, 20);
+            this.labAbilityGroup.TabIndex = 9;
+            this.labAbilityGroup.Text = "分组";
             //
             // cmdRemoveTalent
             //
@@ -481,7 +578,7 @@
             this.numAbilityLevel.Size = new System.Drawing.Size(49, 27);
             this.numAbilityLevel.TabIndex = 3;
             this.numAbilityLevel.Value = new decimal(new int[] {
-            100,
+            99,
             0,
             0,
             0});
@@ -540,11 +637,11 @@
             this.viewData.FullRowSelect = true;
             this.viewData.GridLines = true;
             this.viewData.HideSelection = false;
-            this.viewData.Location = new System.Drawing.Point(0, 130);
+            this.viewData.Location = new System.Drawing.Point(0, 0);
             this.viewData.Margin = new System.Windows.Forms.Padding(4);
             this.viewData.MultiSelect = false;
             this.viewData.Name = "viewData";
-            this.viewData.Size = new System.Drawing.Size(404, 528);
+            this.viewData.Size = new System.Drawing.Size(404, 658);
             this.viewData.SmallImageList = this.imageList1;
             this.viewData.TabIndex = 9;
             this.viewData.UseCompatibleStateImageBehavior = false;
@@ -613,6 +710,7 @@
         private System.Windows.Forms.ToolStripContainer toolContainer;
         private System.Windows.Forms.MenuStrip menuMain;
         private System.Windows.Forms.ToolStripMenuItem menuFile;
+        private System.Windows.Forms.ToolStripMenuItem menuAbility;
         private System.Windows.Forms.ToolStripMenuItem menuFileExit;
         private System.Windows.Forms.ToolStripMenuItem menuHelp;
         private System.Windows.Forms.ToolStripMenuItem menuHelpAbout;
@@ -650,6 +748,13 @@
         private System.Windows.Forms.ToolStripMenuItem xToolStripMenuItem3;
         private System.Windows.Forms.GroupBox grpAbilityCommand;
         private System.Windows.Forms.Label labAbilityCommandState;
+        private System.Windows.Forms.Button cmdRemoveGroupTalent;
+        private System.Windows.Forms.Button cmdAddGroupTalent;
+        private System.Windows.Forms.Button cmdRemoveGroupAbility;
+        private System.Windows.Forms.Button cmdAddGroupAbility;
+        private System.Windows.Forms.ListBox lstAbilityGroupItems;
+        private System.Windows.Forms.ComboBox cboAbilityGroup;
+        private System.Windows.Forms.Label labAbilityGroup;
         private System.Windows.Forms.Button cmdRemoveTalent;
         private System.Windows.Forms.Button cmdAddTalent;
         private System.Windows.Forms.Button cmdRemoveAbility;
