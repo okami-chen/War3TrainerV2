@@ -26,6 +26,9 @@ namespace War3Trainer
         public UInt32 JassUnitAddAbilityAddress { get; private set; }
         public UInt32 JassUnitRemoveAbilityAddress { get; private set; }
         public UInt32 JassSetUnitAbilityLevelAddress { get; private set; }
+        public UInt32 JassGetOwningPlayerAddress { get; private set; }
+        public UInt32 JassGetPlayerIdAddress { get; private set; }
+        public UInt32 JassKillUnitAddress { get; private set; }
 
         public UInt32 AttackAttributesOffset  { get; private set; }
         public UInt32 HeroAttributesOffset    { get; private set; }
@@ -188,6 +191,9 @@ namespace War3Trainer
             JassUnitAddAbilityAddress = 0;
             JassUnitRemoveAbilityAddress = 0;
             JassSetUnitAbilityLevelAddress = 0;
+            JassGetOwningPlayerAddress = 0;
+            JassGetPlayerIdAddress = 0;
+            JassKillUnitAddress = 0;
 
             switch (ProcessVersion)
             {
@@ -346,6 +352,9 @@ namespace War3Trainer
                     JassUnitAddAbilityAddress = _moduleAddress + 0x1FA510;
                     JassUnitRemoveAbilityAddress = _moduleAddress + 0x1FB0B0;
                     JassSetUnitAbilityLevelAddress = _moduleAddress + 0x1F7140;
+                    JassGetOwningPlayerAddress = _moduleAddress + 0x1E3BA0;
+                    JassGetPlayerIdAddress = _moduleAddress + 0x1E3D20;
+                    JassKillUnitAddress = _moduleAddress + 0x1EFCD0;
                     break;
                 default:
                     System.Diagnostics.Debug.Assert(false, "Impossible to run to here");
