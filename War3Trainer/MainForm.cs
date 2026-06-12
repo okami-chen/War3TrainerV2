@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -504,6 +505,16 @@ namespace War3Trainer
             ExecuteKillSelectedUnitCampUiCommand();
         }
 
+        private void cmdSetPlayerExpRate_Click(object sender, EventArgs e)
+        {
+            ExecuteSetPlayerExpRateUiCommand();
+        }
+
+        private void cmdDropSelectedUnitItems_Click(object sender, EventArgs e)
+        {
+            ExecuteDropSelectedUnitItemsUiCommand();
+        }
+
         private void cboAbilityGroup_SelectedIndexChanged(object sender, EventArgs e)
         {
             LoadSelectedAbilityGroupItems();
@@ -717,7 +728,11 @@ namespace War3Trainer
             cmdAddGroupTalent.Enabled = enabled;
             cmdRemoveGroupTalent.Enabled = enabled;
             cmdKillPlayerUnits.Enabled = enabled;
+            cmdSetPlayerExpRate.Enabled = enabled;
+            cmdDropSelectedUnitItems.Enabled = enabled;
             cboAbilityGroup.Enabled = !running;
+            cboPlayerExpRatePlayer.Enabled = !running;
+            txtPlayerExpRate.Enabled = !running;
             cmdScanGame.Enabled = !running;
         }
 
@@ -759,6 +774,10 @@ namespace War3Trainer
             cboAbilityId.DisplayMember = "Name";
             cboAbilityId.ValueMember = "Id";
             cboAbilityGroup.DisplayMember = "Name";
+            cboPlayerExpRatePlayer.Items.Clear();
+            for (int playerIndex = 1; playerIndex <= 10; playerIndex++)
+                cboPlayerExpRatePlayer.Items.Add("玩家" + playerIndex.ToString());
+            cboPlayerExpRatePlayer.SelectedIndex = 0;
 
             string skillsFilePath = GetConfigFilePath("skills.ini");
             EnsureDefaultSkillsFile(skillsFilePath);
@@ -1214,6 +1233,210 @@ namespace War3Trainer
             }
         }
 
+        private void ExecuteDropSelectedUnitItemsUiCommand()
+        {
+            if (_abilityGroupCommandRunning)
+            {
+                labAbilityCommandState.Text = "命令正在执行";
+                return;
+            }
+
+            if (_currentGameContext == null)
+            {
+                labAbilityCommandState.Text = "游戏未运行";
+                return;
+            }
+
+            try
+            {
+                int droppedCount = DropSelectedUnitItems();
+                labAbilityCommandState.Text = "已丢弃" + droppedCount.ToString() + "件选中单位装备";
+            }
+            catch (NotSupportedException ex)
+            {
+                labAbilityCommandState.Text = "当前版本未配置丢弃装备JASS函数地址";
+                MessageBox.Show(
+                    ex.Message,
+                    "丢弃装备",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            catch (WindowsApi.BadProcessIdException ex)
+            {
+                labAbilityCommandState.Text = "游戏进程不可用";
+                ReportProcessIdFailure(ex.ProcessId);
+            }
+            catch (InvalidOperationException ex)
+            {
+                labAbilityCommandState.Text = ex.Message;
+                MessageBox.Show(
+                    ex.Message,
+                    "丢弃装备",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+            catch (Exception ex)
+            {
+                labAbilityCommandState.Text = "丢弃装备失败";
+                MessageBox.Show(
+                    ex.Message,
+                    "丢弃装备",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
+        private int DropSelectedUnitItems()
+        {
+            EnsureJassItemFunctionAddress();
+
+            List<UInt32> selectedUnits = GetSelectedUnitAddresses();
+            if (selectedUnits.Count == 0)
+                throw new InvalidOperationException("没有选中的单位");
+
+            int droppedCount = 0;
+            using (WindowsApi.ProcessMemory mem = new WindowsApi.ProcessMemory(_currentGameContext.ProcessId))
+            {
+                foreach (UInt32 unitAddress in selectedUnits)
+                {
+                    UInt32 jassHandle;
+                    if (!TryGetJassUnitHandle(mem, unitAddress, out jassHandle))
+                        throw new InvalidOperationException("无法获取选中单位的JASS handle");
+
+                    for (int itemSlot = 0; itemSlot < 6; itemSlot++)
+                    {
+                        UInt32 itemHandle = ExecuteJassUnitItemInSlot(mem, jassHandle, itemSlot);
+                        if (itemHandle == 0)
+                            continue;
+
+                        ExecuteJassUnitRemoveItem(mem, jassHandle, itemHandle);
+                        droppedCount++;
+                        Thread.Sleep(10);
+                    }
+                }
+            }
+
+            return droppedCount;
+        }
+
+        private void EnsureJassItemFunctionAddress()
+        {
+            if (_currentGameContext.JassStateGlobalAddress == 0
+                || _currentGameContext.JassGetManagerAddress == 0
+                || (_currentGameContext.JassGetAgentByObjectAddress == 0
+                    && _currentGameContext.JassHandleToUnitAddress == 0)
+                || _currentGameContext.JassUnitItemInSlotAddress == 0
+                || _currentGameContext.JassUnitRemoveItemAddress == 0)
+            {
+                throw new NotSupportedException(
+                    "当前游戏版本没有配置完整的UnitItemInSlot/UnitRemoveItem/JASS handle函数地址。\r\n\r\n"
+                    + "1.27a已从当前Game.dll填入；其他版本需要继续反汇编对应game.dll后填写。");
+            }
+        }
+
+        private void ExecuteSetPlayerExpRateUiCommand()
+        {
+            if (_abilityGroupCommandRunning)
+            {
+                labAbilityCommandState.Text = "命令正在执行";
+                return;
+            }
+
+            if (_currentGameContext == null)
+            {
+                labAbilityCommandState.Text = "游戏未运行";
+                return;
+            }
+
+            int playerIndex = cboPlayerExpRatePlayer.SelectedIndex;
+            if (playerIndex < 0)
+            {
+                labAbilityCommandState.Text = "请选择玩家";
+                cboPlayerExpRatePlayer.Focus();
+                return;
+            }
+
+            float expRate;
+            if (!TryParseExpRate(txtPlayerExpRate.Text, out expRate))
+            {
+                labAbilityCommandState.Text = "经验倍率必须是数字";
+                txtPlayerExpRate.Focus();
+                return;
+            }
+
+            try
+            {
+                SetPlayerExpRate(playerIndex, expRate);
+                labAbilityCommandState.Text = "已设置玩家" + (playerIndex + 1).ToString()
+                    + "经验倍率为" + expRate.ToString("0.##") + "倍";
+            }
+            catch (NotSupportedException ex)
+            {
+                labAbilityCommandState.Text = "当前版本未配置经验倍率JASS函数地址";
+                MessageBox.Show(
+                    ex.Message,
+                    "经验倍率",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            catch (WindowsApi.BadProcessIdException ex)
+            {
+                labAbilityCommandState.Text = "游戏进程不可用";
+                ReportProcessIdFailure(ex.ProcessId);
+            }
+            catch (Exception ex)
+            {
+                labAbilityCommandState.Text = "设置经验倍率失败";
+                MessageBox.Show(
+                    ex.Message,
+                    "经验倍率",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
+        private static bool TryParseExpRate(string text, out float expRate)
+        {
+            text = (text ?? String.Empty).Trim();
+            if (float.TryParse(
+                text,
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out expRate))
+                return true;
+
+            return float.TryParse(
+                text.Replace(',', '.'),
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out expRate);
+        }
+
+        private void SetPlayerExpRate(int playerIndex, float expRate)
+        {
+            EnsureJassExpRateFunctionAddress();
+
+            using (WindowsApi.ProcessMemory mem = new WindowsApi.ProcessMemory(_currentGameContext.ProcessId))
+            {
+                UInt32 playerHandle = ExecuteJassPlayer(mem, playerIndex);
+                if (playerHandle == 0)
+                    throw new InvalidOperationException("无法获取玩家" + (playerIndex + 1).ToString() + "的JASS handle");
+
+                ExecuteJassSetPlayerHandicapXP(mem, playerHandle, expRate);
+            }
+        }
+
+        private void EnsureJassExpRateFunctionAddress()
+        {
+            if (_currentGameContext.JassPlayerAddress == 0
+                || _currentGameContext.JassSetPlayerHandicapXPAddress == 0)
+            {
+                throw new NotSupportedException(
+                    "当前游戏版本没有配置Player/SetPlayerHandicapXP函数地址。\r\n\r\n"
+                    + "1.27a已从当前Game.dll填入；其他版本需要继续反汇编对应game.dll后填写。");
+            }
+        }
+
         private int KillSelectedUnits()
         {
             EnsureJassKillUnitFunctionAddress();
@@ -1528,6 +1751,68 @@ namespace War3Trainer
             return unchecked((int)mem.ExecuteRemoteCode(code.ToArray()));
         }
 
+        private UInt32 ExecuteJassPlayer(
+            WindowsApi.ProcessMemory mem,
+            int playerIndex)
+        {
+            RemoteCodeBuilder code = new RemoteCodeBuilder();
+            code.Push(unchecked((UInt32)playerIndex));
+            code.MovEax(_currentGameContext.JassPlayerAddress);
+            code.CallEax();
+            code.AddEsp(4);
+            code.Ret();
+            return mem.ExecuteRemoteCode(code.ToArray());
+        }
+
+        private void ExecuteJassSetPlayerHandicapXP(
+            WindowsApi.ProcessMemory mem,
+            UInt32 playerHandle,
+            float expRate)
+        {
+            UInt32 expRateBits = BitConverter.ToUInt32(BitConverter.GetBytes(expRate), 0);
+
+            RemoteCodeBuilder code = new RemoteCodeBuilder();
+            code.SubEsp(4);
+            code.MovDwordPtrEsp(expRateBits);
+            code.PushEsp();
+            code.Push(playerHandle);
+            code.MovEax(_currentGameContext.JassSetPlayerHandicapXPAddress);
+            code.CallEax();
+            code.AddEsp(12);
+            code.Ret();
+            mem.ExecuteRemoteCode(code.ToArray());
+        }
+
+        private UInt32 ExecuteJassUnitItemInSlot(
+            WindowsApi.ProcessMemory mem,
+            UInt32 jassHandle,
+            int itemSlot)
+        {
+            RemoteCodeBuilder code = new RemoteCodeBuilder();
+            code.Push(unchecked((UInt32)itemSlot));
+            code.Push(jassHandle);
+            code.MovEax(_currentGameContext.JassUnitItemInSlotAddress);
+            code.CallEax();
+            code.AddEsp(8);
+            code.Ret();
+            return mem.ExecuteRemoteCode(code.ToArray());
+        }
+
+        private void ExecuteJassUnitRemoveItem(
+            WindowsApi.ProcessMemory mem,
+            UInt32 jassHandle,
+            UInt32 itemHandle)
+        {
+            RemoteCodeBuilder code = new RemoteCodeBuilder();
+            code.Push(itemHandle);
+            code.Push(jassHandle);
+            code.MovEax(_currentGameContext.JassUnitRemoveItemAddress);
+            code.CallEax();
+            code.AddEsp(8);
+            code.Ret();
+            mem.ExecuteRemoteCode(code.ToArray());
+        }
+
         private void ExecuteJassKillUnit(
             WindowsApi.ProcessMemory mem,
             UInt32 jassHandle)
@@ -1622,6 +1907,7 @@ namespace War3Trainer
 
             public void Push(UInt32 value) { AddByte(0x68); AddUInt32(value); }
             public void PushByte(byte value) { AddByte(0x6A); AddByte(value); }
+            public void PushEsp() { AddByte(0x54); }
             public void PushEax() { AddByte(0x50); }
             public void MovEax(UInt32 value) { AddByte(0xB8); AddUInt32(value); }
             public void MovEbx(UInt32 value) { AddByte(0xBB); AddUInt32(value); }
@@ -1644,6 +1930,8 @@ namespace War3Trainer
             public void CallEax() { AddBytes(0xFF, 0xD0); }
             public void CallDwordEax(UInt32 offset) { AddBytes(0xFF, 0x90); AddUInt32(offset); }
             public void CallDwordEdx(UInt32 offset) { AddBytes(0xFF, 0x92); AddUInt32(offset); }
+            public void SubEsp(byte value) { AddBytes(0x83, 0xEC, value); }
+            public void MovDwordPtrEsp(UInt32 value) { AddBytes(0xC7, 0x04, 0x24); AddUInt32(value); }
             public void AddEsp(byte value) { AddBytes(0x83, 0xC4, value); }
             public void Ret() { AddByte(0xC3); }
             public void Jmp(string label) { AddByte(0xE9); AddJump(label); }

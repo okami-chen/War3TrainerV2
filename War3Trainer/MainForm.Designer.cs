@@ -66,6 +66,11 @@
             this.viewFunctions = new System.Windows.Forms.TreeView();
             this.grpAbilityCommand = new System.Windows.Forms.GroupBox();
             this.labAbilityCommandState = new System.Windows.Forms.Label();
+            this.cmdSetPlayerExpRate = new System.Windows.Forms.Button();
+            this.txtPlayerExpRate = new System.Windows.Forms.TextBox();
+            this.cboPlayerExpRatePlayer = new System.Windows.Forms.ComboBox();
+            this.labPlayerExpRate = new System.Windows.Forms.Label();
+            this.cmdDropSelectedUnitItems = new System.Windows.Forms.Button();
             this.cmdKillPlayerUnits = new System.Windows.Forms.Button();
             this.cmdRemoveGroupTalent = new System.Windows.Forms.Button();
             this.cmdAddGroupTalent = new System.Windows.Forms.Button();
@@ -412,6 +417,11 @@
             // grpAbilityCommand
             // 
             this.grpAbilityCommand.Controls.Add(this.labAbilityCommandState);
+            this.grpAbilityCommand.Controls.Add(this.cmdSetPlayerExpRate);
+            this.grpAbilityCommand.Controls.Add(this.txtPlayerExpRate);
+            this.grpAbilityCommand.Controls.Add(this.cboPlayerExpRatePlayer);
+            this.grpAbilityCommand.Controls.Add(this.labPlayerExpRate);
+            this.grpAbilityCommand.Controls.Add(this.cmdDropSelectedUnitItems);
             this.grpAbilityCommand.Controls.Add(this.cmdKillPlayerUnits);
             this.grpAbilityCommand.Controls.Add(this.cmdRemoveGroupTalent);
             this.grpAbilityCommand.Controls.Add(this.cmdAddGroupTalent);
@@ -433,7 +443,7 @@
             this.grpAbilityCommand.Margin = new System.Windows.Forms.Padding(4);
             this.grpAbilityCommand.Name = "grpAbilityCommand";
             this.grpAbilityCommand.Padding = new System.Windows.Forms.Padding(4);
-            this.grpAbilityCommand.Size = new System.Drawing.Size(404, 315);
+            this.grpAbilityCommand.Size = new System.Drawing.Size(404, 360);
             this.grpAbilityCommand.TabIndex = 11;
             this.grpAbilityCommand.TabStop = false;
             this.grpAbilityCommand.Text = "JASS技能";
@@ -441,12 +451,63 @@
             // labAbilityCommandState
             // 
             this.labAbilityCommandState.AutoSize = true;
-            this.labAbilityCommandState.Location = new System.Drawing.Point(9, 289);
+            this.labAbilityCommandState.Location = new System.Drawing.Point(9, 334);
             this.labAbilityCommandState.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.labAbilityCommandState.Name = "labAbilityCommandState";
             this.labAbilityCommandState.Size = new System.Drawing.Size(219, 20);
             this.labAbilityCommandState.TabIndex = 6;
             this.labAbilityCommandState.Text = "选择技能，代码中可继续添加";
+            //
+            // cmdSetPlayerExpRate
+            //
+            this.cmdSetPlayerExpRate.Location = new System.Drawing.Point(232, 278);
+            this.cmdSetPlayerExpRate.Margin = new System.Windows.Forms.Padding(4);
+            this.cmdSetPlayerExpRate.Name = "cmdSetPlayerExpRate";
+            this.cmdSetPlayerExpRate.Size = new System.Drawing.Size(164, 29);
+            this.cmdSetPlayerExpRate.TabIndex = 22;
+            this.cmdSetPlayerExpRate.Text = "设置经验倍率";
+            this.cmdSetPlayerExpRate.UseVisualStyleBackColor = true;
+            this.cmdSetPlayerExpRate.Click += new System.EventHandler(this.cmdSetPlayerExpRate_Click);
+            //
+            // txtPlayerExpRate
+            //
+            this.txtPlayerExpRate.Location = new System.Drawing.Point(150, 279);
+            this.txtPlayerExpRate.Margin = new System.Windows.Forms.Padding(4);
+            this.txtPlayerExpRate.Name = "txtPlayerExpRate";
+            this.txtPlayerExpRate.Size = new System.Drawing.Size(74, 27);
+            this.txtPlayerExpRate.TabIndex = 21;
+            this.txtPlayerExpRate.Text = "1.00";
+            //
+            // cboPlayerExpRatePlayer
+            //
+            this.cboPlayerExpRatePlayer.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cboPlayerExpRatePlayer.FormattingEnabled = true;
+            this.cboPlayerExpRatePlayer.Location = new System.Drawing.Point(59, 279);
+            this.cboPlayerExpRatePlayer.Margin = new System.Windows.Forms.Padding(4);
+            this.cboPlayerExpRatePlayer.Name = "cboPlayerExpRatePlayer";
+            this.cboPlayerExpRatePlayer.Size = new System.Drawing.Size(83, 28);
+            this.cboPlayerExpRatePlayer.TabIndex = 23;
+            //
+            // labPlayerExpRate
+            //
+            this.labPlayerExpRate.AutoSize = true;
+            this.labPlayerExpRate.Location = new System.Drawing.Point(9, 282);
+            this.labPlayerExpRate.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.labPlayerExpRate.Name = "labPlayerExpRate";
+            this.labPlayerExpRate.Size = new System.Drawing.Size(39, 20);
+            this.labPlayerExpRate.TabIndex = 20;
+            this.labPlayerExpRate.Text = "玩家";
+            //
+            // cmdDropSelectedUnitItems
+            //
+            this.cmdDropSelectedUnitItems.Location = new System.Drawing.Point(232, 243);
+            this.cmdDropSelectedUnitItems.Margin = new System.Windows.Forms.Padding(4);
+            this.cmdDropSelectedUnitItems.Name = "cmdDropSelectedUnitItems";
+            this.cmdDropSelectedUnitItems.Size = new System.Drawing.Size(164, 29);
+            this.cmdDropSelectedUnitItems.TabIndex = 24;
+            this.cmdDropSelectedUnitItems.Text = "丢弃装备";
+            this.cmdDropSelectedUnitItems.UseVisualStyleBackColor = true;
+            this.cmdDropSelectedUnitItems.Click += new System.EventHandler(this.cmdDropSelectedUnitItems_Click);
             //
             // cmdKillPlayerUnits
             //
@@ -761,6 +822,11 @@
         private System.Windows.Forms.ToolStripMenuItem xToolStripMenuItem3;
         private System.Windows.Forms.GroupBox grpAbilityCommand;
         private System.Windows.Forms.Label labAbilityCommandState;
+        private System.Windows.Forms.Button cmdSetPlayerExpRate;
+        private System.Windows.Forms.TextBox txtPlayerExpRate;
+        private System.Windows.Forms.ComboBox cboPlayerExpRatePlayer;
+        private System.Windows.Forms.Label labPlayerExpRate;
+        private System.Windows.Forms.Button cmdDropSelectedUnitItems;
         private System.Windows.Forms.Button cmdKillPlayerUnits;
         private System.Windows.Forms.Button cmdRemoveGroupTalent;
         private System.Windows.Forms.Button cmdAddGroupTalent;
