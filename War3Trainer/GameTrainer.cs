@@ -522,16 +522,20 @@ namespace War3Trainer
                     tmpValue1);
                 tmpAddress1 = unchecked(tmpAddress1 + 0x84);
                 CreateAddress(new NewAddressListEventArgs(_nodeIndex,
+                    "HP - 回复类型",
+                    unchecked(_newChildrenArgs.ThisUnitAddress + 0xAC),
+                    AddressListValueType.Integer));
+                CreateAddress(new NewAddressListEventArgs(_nodeIndex,
+                    "HP - 回复率",
+                    unchecked(_newChildrenArgs.ThisUnitAddress + 0xB0),
+                    AddressListValueType.Float));
+                CreateAddress(new NewAddressListEventArgs(_nodeIndex,
                     "HP - 当前",
                     unchecked(tmpAddress1 - 0xC),
                     AddressListValueType.Float));
                 CreateAddress(new NewAddressListEventArgs(_nodeIndex,
                     "HP - 最大",
                     tmpAddress1,
-                    AddressListValueType.Float));
-                CreateAddress(new NewAddressListEventArgs(_nodeIndex,
-                    "HP - 回复率",
-                    unchecked(_newChildrenArgs.ThisUnitAddress + 0xB0),
                     AddressListValueType.Float));
 
                 tmpValue1 = mem.ReadInt32((IntPtr)unchecked(_newChildrenArgs.ThisUnitAddress + 0x98 + 0x28));
@@ -540,16 +544,20 @@ namespace War3Trainer
                     tmpValue1);
                 tmpAddress1 = unchecked(tmpAddress1 + 0x84);
                 CreateAddress(new NewAddressListEventArgs(_nodeIndex,
+                    "MP - 回复类型",
+                    unchecked(_newChildrenArgs.ThisUnitAddress + 0xD4),
+                    AddressListValueType.Integer));
+                CreateAddress(new NewAddressListEventArgs(_nodeIndex,
+                    "MP - 回复率",
+                    unchecked(_newChildrenArgs.ThisUnitAddress + 0xD8),
+                    AddressListValueType.Float));
+                CreateAddress(new NewAddressListEventArgs(_nodeIndex,
                     "MP - 当前",
                     unchecked(tmpAddress1 - 0xC),
                     AddressListValueType.Float));
                 CreateAddress(new NewAddressListEventArgs(_nodeIndex,
                     "MP - 最大",
                     tmpAddress1,
-                    AddressListValueType.Float));
-                CreateAddress(new NewAddressListEventArgs(_nodeIndex,
-                    "MP - 回复率",
-                    unchecked(_newChildrenArgs.ThisUnitAddress + 0xD4),
                     AddressListValueType.Float));
                 
                 CreateAddress(new NewAddressListEventArgs(_nodeIndex,

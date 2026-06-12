@@ -274,6 +274,8 @@ namespace War3Trainer
                                 floatValue = 0;
                             floatValue = unchecked(floatValue * addressLine.ValueScale);
                             mem.WriteFloat((IntPtr)addressLine.Address, floatValue);
+                            if ((addressLine.Caption == "HP - 回复率" || addressLine.Caption == "MP - 回复率") && floatValue != 0)
+                                mem.WriteInt32((IntPtr)unchecked(addressLine.Address - 4), 1);
                             break;
                         case AddressListValueType.Char4:
                             mem.WriteChar4((IntPtr)addressLine.Address, itemValueString);
