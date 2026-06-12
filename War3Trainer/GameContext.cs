@@ -229,7 +229,6 @@ namespace War3Trainer
                 case "1.24.0.6372":
                 case "1.24.2.6378":
                 case "1.24.3.6384":
-                case "1.27.0.52240":
                 case "1.28.0.7205":
                 case "1.28.5.7680":
                     // Fill these with addresses for the matching version.
@@ -331,6 +330,22 @@ namespace War3Trainer
                     JassUnitAddAbilityAddress = _moduleAddress + 0x3C82A0;
                     JassUnitRemoveAbilityAddress = _moduleAddress + 0x3C8310;
                     JassSetUnitAbilityLevelAddress = _moduleAddress + 0x3C71B0;
+                    break;
+                case "1.27.0.52240":
+                    UnitAddAbilityAddress = _moduleAddress + 0x454EB0;
+                    UnitRemoveAbilityAddress = _moduleAddress + 0x471160;
+                    UnitSetAbilityLevelAddress = _moduleAddress + 0x1F7140;
+                    UnitFindAbilityAddress = _moduleAddress + 0x46F440;
+                    UnitRefreshAbilityAddress = _moduleAddress + 0x3598C0;
+                    UnitBeginAbilityUpdateAddress = _moduleAddress + 0x6AD4E0;
+                    UnitEndAbilityUpdateAddress = _moduleAddress + 0x6AA8E0;
+                    UnitGetAbilityMaxLevelAddress = _moduleAddress + 0x3F86C0;
+                    JassStateGlobalAddress = _moduleAddress + 0xBE4238;
+                    JassGetManagerAddress = _moduleAddress + 0x1C3200;
+                    JassHandleToUnitAddress = _moduleAddress + 0x1D1550;
+                    JassUnitAddAbilityAddress = _moduleAddress + 0x1FA510;
+                    JassUnitRemoveAbilityAddress = _moduleAddress + 0x1FB0B0;
+                    JassSetUnitAbilityLevelAddress = _moduleAddress + 0x1F7140;
                     break;
                 default:
                     System.Diagnostics.Debug.Assert(false, "Impossible to run to here");
