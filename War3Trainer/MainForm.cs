@@ -476,22 +476,22 @@ namespace War3Trainer
 
         private void cmdAddGroupAbility_Click(object sender, EventArgs e)
         {
-            ExecuteAbilityGroupUiCommand(false, true);
+            ExecuteAbilityGroupUiCommand("技能", true);
         }
 
         private void cmdRemoveGroupAbility_Click(object sender, EventArgs e)
         {
-            ExecuteAbilityGroupUiCommand(false, false);
+            ExecuteAbilityGroupUiCommand("技能", false);
         }
 
         private void cmdAddGroupTalent_Click(object sender, EventArgs e)
         {
-            ExecuteAbilityGroupUiCommand(true, true);
+            ExecuteAbilityGroupUiCommand("天赋", true);
         }
 
         private void cmdRemoveGroupTalent_Click(object sender, EventArgs e)
         {
-            ExecuteAbilityGroupUiCommand(true, false);
+            ExecuteAbilityGroupUiCommand("天赋", false);
         }
 
         private void cboAbilityGroup_SelectedIndexChanged(object sender, EventArgs e)
@@ -518,14 +518,14 @@ namespace War3Trainer
             int abilityLevel = Decimal.ToInt32(numAbilityLevel.Value);
             try
             {
-                int unitCount = ExecuteRemoteAbilityCommand(abilityId, abilityLevel, addAbility);
+                int unitCount = ExecuteJassAbilityCommand(abilityId, abilityLevel, addAbility);
                 labAbilityCommandState.Text = addAbility
                     ? "已添加技能到" + unitCount.ToString() + "个单位"
                     : "已删除" + unitCount.ToString() + "个单位的技能";
             }
             catch (NotSupportedException ex)
             {
-                labAbilityCommandState.Text = "当前版本未配置函数地址";
+                labAbilityCommandState.Text = "当前版本未配置JASS函数地址";
                 MessageBox.Show(
                     ex.Message,
                     "JASS技能",
@@ -597,7 +597,7 @@ namespace War3Trainer
             }
         }
 
-        private void ExecuteAbilityGroupUiCommand(bool useJass, bool addAbility)
+        private void ExecuteAbilityGroupUiCommand(string targetName, bool addAbility)
         {
             if (_currentGameContext == null)
             {
@@ -616,21 +616,18 @@ namespace War3Trainer
             int abilityLevel = Decimal.ToInt32(numAbilityLevel.Value);
             try
             {
-                int unitCount = useJass
-                    ? ExecuteJassAbilityGroupCommand(group.Abilities, abilityLevel, addAbility)
-                    : ExecuteRemoteAbilityGroupCommand(group.Abilities, abilityLevel, addAbility);
+                int unitCount = ExecuteJassAbilityGroupCommand(group.Abilities, abilityLevel, addAbility);
 
-                string targetName = useJass ? "天赋" : "技能";
                 labAbilityCommandState.Text = addAbility
                     ? "已添加" + group.Name + "的" + group.Abilities.Count.ToString() + "个" + targetName + "到" + unitCount.ToString() + "个单位"
                     : "已删除" + unitCount.ToString() + "个单位的" + group.Name + targetName;
             }
             catch (NotSupportedException ex)
             {
-                labAbilityCommandState.Text = useJass ? "当前版本未配置JASS函数地址" : "当前版本未配置函数地址";
+                labAbilityCommandState.Text = "当前版本未配置JASS函数地址";
                 MessageBox.Show(
                     ex.Message,
-                    useJass ? "JASS天赋" : "JASS技能",
+                    "JASS技能",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
             }
@@ -644,7 +641,7 @@ namespace War3Trainer
                 labAbilityCommandState.Text = ex.Message;
                 MessageBox.Show(
                     ex.Message,
-                    useJass ? "JASS天赋" : "JASS技能",
+                    "JASS技能",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
             }
@@ -841,68 +838,6 @@ namespace War3Trainer
             }
         }
 
-        private int ExecuteRemoteAbilityCommand(string abilityId, int abilityLevel, bool addAbility)
-        {
-            EnsureAbilityFunctionAddress(addAbility);
-
-            List<UInt32> selectedUnits = GetSelectedUnitAddresses();
-            if (selectedUnits.Count == 0)
-                throw new InvalidOperationException("没有选中的单位");
-
-            UInt32 abilityIdValue = AbilityIdToUInt32(abilityId);
-            using (WindowsApi.ProcessMemory mem = new WindowsApi.ProcessMemory(_currentGameContext.ProcessId))
-            {
-                foreach (UInt32 unitAddress in selectedUnits)
-                {
-                    if (addAbility)
-                    {
-                        ExecuteAddAbility(mem, unitAddress, abilityIdValue);
-                        ExecuteSetAbilityLevel(mem, unitAddress, abilityIdValue, abilityLevel);
-                    }
-                    else
-                    {
-                        ExecuteRemoveAbility(mem, unitAddress, abilityIdValue);
-                    }
-                }
-            }
-
-            return selectedUnits.Count;
-        }
-
-        private int ExecuteRemoteAbilityGroupCommand(
-            IList<AbilityOption> abilities,
-            int abilityLevel,
-            bool addAbility)
-        {
-            EnsureAbilityFunctionAddress(addAbility);
-
-            List<UInt32> selectedUnits = GetSelectedUnitAddresses();
-            if (selectedUnits.Count == 0)
-                throw new InvalidOperationException("没有选中的单位");
-
-            using (WindowsApi.ProcessMemory mem = new WindowsApi.ProcessMemory(_currentGameContext.ProcessId))
-            {
-                foreach (UInt32 unitAddress in selectedUnits)
-                {
-                    foreach (AbilityOption ability in abilities)
-                    {
-                        UInt32 abilityIdValue = AbilityIdToUInt32(ability.Id);
-                        if (addAbility)
-                        {
-                            ExecuteAddAbility(mem, unitAddress, abilityIdValue);
-                            ExecuteSetAbilityLevel(mem, unitAddress, abilityIdValue, abilityLevel);
-                        }
-                        else
-                        {
-                            ExecuteRemoveAbility(mem, unitAddress, abilityIdValue);
-                        }
-                    }
-                }
-            }
-
-            return selectedUnits.Count;
-        }
-
         private int ExecuteJassAbilityCommand(string abilityId, int abilityLevel, bool addAbility)
         {
             EnsureJassAbilityFunctionAddress(addAbility);
@@ -977,36 +912,6 @@ namespace War3Trainer
             }
 
             return selectedUnits.Count;
-        }
-
-        private void EnsureAbilityFunctionAddress(bool addAbility)
-        {
-            if (addAbility)
-            {
-                if (_currentGameContext.UnitAddAbilityAddress == 0
-                    || _currentGameContext.UnitSetAbilityLevelAddress == 0
-                    || _currentGameContext.UnitFindAbilityAddress == 0
-                    || _currentGameContext.UnitRefreshAbilityAddress == 0
-                    || _currentGameContext.UnitBeginAbilityUpdateAddress == 0
-                    || _currentGameContext.UnitEndAbilityUpdateAddress == 0
-                    || _currentGameContext.UnitGetAbilityMaxLevelAddress == 0)
-                {
-                    throw new NotSupportedException(
-                        "当前游戏版本没有配置完整的添加/设置技能函数地址。\r\n\r\n"
-                        + "请在GameContext.GetAbilityFunctionAddress()里填写当前版本game.dll对应地址后再使用。");
-                }
-            }
-            else
-            {
-                if (_currentGameContext.UnitRemoveAbilityAddress == 0
-                    || _currentGameContext.UnitFindAbilityAddress == 0
-                    || _currentGameContext.UnitRefreshAbilityAddress == 0)
-                {
-                    throw new NotSupportedException(
-                        "当前游戏版本没有配置完整的删除技能函数地址。\r\n\r\n"
-                        + "请在GameContext.GetAbilityFunctionAddress()里填写当前版本game.dll对应地址后再使用。");
-                }
-            }
         }
 
         private void EnsureJassAbilityFunctionAddress(bool addAbility)
@@ -1286,141 +1191,6 @@ namespace War3Trainer
             code.AddEsp(12);
             code.Ret();
             mem.ExecuteRemoteCode(code.ToArray());
-        }
-
-        private void ExecuteAddAbility(
-            WindowsApi.ProcessMemory mem,
-            UInt32 unitAddress,
-            UInt32 abilityId)
-        {
-            RemoteCodeBuilder code = new RemoteCodeBuilder();
-
-            EmitFindAbility(code, unitAddress, abilityId);
-            code.TestEaxEax();
-            code.Jnz("done");
-
-            code.MovEcx(unitAddress);
-            code.MovEax(_currentGameContext.UnitBeginAbilityUpdateAddress);
-            code.CallEax();
-
-            code.PushByte(0);
-            code.PushByte(0);
-            code.PushByte(0);
-            code.MovEdx(abilityId);
-            code.MovEcx(unitAddress);
-            code.MovEax(_currentGameContext.UnitAddAbilityAddress);
-            code.CallEax();
-            code.MovEsiEax();
-
-            code.MovEcx(unitAddress);
-            code.MovEax(_currentGameContext.UnitEndAbilityUpdateAddress);
-            code.CallEax();
-
-            code.TestEsiEsi();
-            code.Jz("done");
-            code.MovEcx(unitAddress);
-            code.MovEax(_currentGameContext.UnitRefreshAbilityAddress);
-            code.CallEax();
-
-            code.Mark("done");
-            code.Ret();
-            mem.ExecuteRemoteCode(code.ToArray());
-        }
-
-        private void ExecuteRemoveAbility(
-            WindowsApi.ProcessMemory mem,
-            UInt32 unitAddress,
-            UInt32 abilityId)
-        {
-            RemoteCodeBuilder code = new RemoteCodeBuilder();
-
-            EmitFindAbility(code, unitAddress, abilityId);
-            code.TestEaxEax();
-            code.Jz("done");
-
-            code.PushEax();
-            code.MovEcx(unitAddress);
-            code.MovEax(_currentGameContext.UnitRemoveAbilityAddress);
-            code.CallEax();
-
-            code.MovEcx(unitAddress);
-            code.MovEax(_currentGameContext.UnitRefreshAbilityAddress);
-            code.CallEax();
-
-            code.Mark("done");
-            code.Ret();
-            mem.ExecuteRemoteCode(code.ToArray());
-        }
-
-        private void ExecuteSetAbilityLevel(
-            WindowsApi.ProcessMemory mem,
-            UInt32 unitAddress,
-            UInt32 abilityId,
-            int abilityLevel)
-        {
-            if (abilityLevel < 1)
-                abilityLevel = 1;
-
-            RemoteCodeBuilder code = new RemoteCodeBuilder();
-
-            EmitFindAbility(code, unitAddress, abilityId);
-            code.TestEaxEax();
-            code.Jz("done");
-            code.MovEdiEax();
-
-            code.MovEcxEdi();
-            code.MovEax(_currentGameContext.UnitGetAbilityMaxLevelAddress);
-            code.CallEax();
-
-            code.MovEbx(unchecked((UInt32)abilityLevel));
-            code.CmpEbxEax();
-            code.Jl("level_ok");
-            code.MovEbxEax();
-            code.Mark("level_ok");
-
-            code.MovEsiFromEdi(0x50);
-            code.IncEsi();
-            code.CmpEsiEbx();
-            code.Jge("maybe_decrease");
-
-            code.Mark("increase_loop");
-            code.MovEaxFromEdi();
-            code.MovEcxEdi();
-            code.CallDwordEax(0x2E4);
-            code.IncEsi();
-            code.CmpEsiEbx();
-            code.Jl("increase_loop");
-            code.Jmp("done");
-
-            code.Mark("maybe_decrease");
-            code.Jle("done");
-
-            code.Mark("decrease_loop");
-            code.MovEdxFromEdi();
-            code.MovEcxEdi();
-            code.CallDwordEdx(0x2E8);
-            code.DecEsi();
-            code.CmpEsiEbx();
-            code.Jg("decrease_loop");
-
-            code.Mark("done");
-            code.Ret();
-            mem.ExecuteRemoteCode(code.ToArray());
-        }
-
-        private void EmitFindAbility(
-            RemoteCodeBuilder code,
-            UInt32 unitAddress,
-            UInt32 abilityId)
-        {
-            code.PushByte(1);
-            code.PushByte(1);
-            code.PushByte(1);
-            code.PushByte(0);
-            code.Push(abilityId);
-            code.MovEcx(unitAddress);
-            code.MovEax(_currentGameContext.UnitFindAbilityAddress);
-            code.CallEax();
         }
 
         private sealed class RemoteCodeBuilder
