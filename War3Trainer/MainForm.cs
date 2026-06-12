@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Windows.Forms;
 
 namespace War3Trainer
@@ -13,6 +14,8 @@ namespace War3Trainer
         private GameContext _currentGameContext;
         private GameTrainer _mainTrainer;
         private Form _abilityForm;
+        private readonly Random _abilityGroupDelayRandom = new Random();
+        private volatile bool _abilityGroupCommandRunning;
 
         public MainForm()
         {
@@ -599,6 +602,12 @@ namespace War3Trainer
 
         private void ExecuteAbilityGroupUiCommand(string targetName, bool addAbility)
         {
+            if (_abilityGroupCommandRunning)
+            {
+                labAbilityCommandState.Text = "分组命令正在执行";
+                return;
+            }
+
             if (_currentGameContext == null)
             {
                 labAbilityCommandState.Text = "游戏未运行";
@@ -614,37 +623,114 @@ namespace War3Trainer
             }
 
             int abilityLevel = Decimal.ToInt32(numAbilityLevel.Value);
-            try
-            {
-                int unitCount = ExecuteJassAbilityGroupCommand(group.Abilities, abilityLevel, addAbility);
+            string groupName = group.Name;
+            List<AbilityOption> abilities = group.Abilities
+                .Select(ability => new AbilityOption(ability.Name, ability.Id))
+                .ToList();
 
-                labAbilityCommandState.Text = addAbility
-                    ? "已添加" + group.Name + "的" + group.Abilities.Count.ToString() + "个" + targetName + "到" + unitCount.ToString() + "个单位"
-                    : "已删除" + unitCount.ToString() + "个单位的" + group.Name + targetName;
-            }
-            catch (NotSupportedException ex)
+            SetAbilityGroupCommandRunning(true);
+            labAbilityCommandState.Text = addAbility
+                ? "正在添加" + groupName + targetName + "..."
+                : "正在删除" + groupName + targetName + "...";
+
+            ThreadPool.QueueUserWorkItem(delegate
             {
-                labAbilityCommandState.Text = "当前版本未配置JASS函数地址";
-                MessageBox.Show(
-                    ex.Message,
-                    "JASS技能",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
-            }
-            catch (WindowsApi.BadProcessIdException ex)
+                try
+                {
+                    int unitCount = ExecuteJassAbilityGroupCommand(abilities, abilityLevel, addAbility);
+
+                    RunOnUiThread(delegate
+                    {
+                        labAbilityCommandState.Text = addAbility
+                            ? "已添加" + groupName + "的" + abilities.Count.ToString() + "个" + targetName + "到" + unitCount.ToString() + "个单位"
+                            : "已删除" + unitCount.ToString() + "个单位的" + groupName + targetName;
+                    });
+                }
+                catch (NotSupportedException ex)
+                {
+                    RunOnUiThread(delegate
+                    {
+                        labAbilityCommandState.Text = "当前版本未配置JASS函数地址";
+                        MessageBox.Show(
+                            ex.Message,
+                            "JASS技能",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
+                    });
+                }
+                catch (WindowsApi.BadProcessIdException ex)
+                {
+                    RunOnUiThread(delegate
+                    {
+                        labAbilityCommandState.Text = "游戏进程不可用";
+                        ReportProcessIdFailure(ex.ProcessId);
+                    });
+                }
+                catch (InvalidOperationException ex)
+                {
+                    RunOnUiThread(delegate
+                    {
+                        labAbilityCommandState.Text = ex.Message;
+                        MessageBox.Show(
+                            ex.Message,
+                            "JASS技能",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                    });
+                }
+                catch (Exception ex)
+                {
+                    RunOnUiThread(delegate
+                    {
+                        labAbilityCommandState.Text = "分组命令执行失败";
+                        MessageBox.Show(
+                            ex.Message,
+                            "JASS技能",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error);
+                    });
+                }
+                finally
+                {
+                    RunOnUiThread(delegate
+                    {
+                        SetAbilityGroupCommandRunning(false);
+                    });
+                }
+            });
+        }
+
+        private void SetAbilityGroupCommandRunning(bool running)
+        {
+            _abilityGroupCommandRunning = running;
+
+            bool enabled = !running && _currentGameContext != null;
+            cmdAddGroupAbility.Enabled = enabled;
+            cmdRemoveGroupAbility.Enabled = enabled;
+            cmdAddGroupTalent.Enabled = enabled;
+            cmdRemoveGroupTalent.Enabled = enabled;
+            cboAbilityGroup.Enabled = !running;
+            cmdScanGame.Enabled = !running;
+        }
+
+        private void RunOnUiThread(Action action)
+        {
+            if (IsDisposed)
+                return;
+
+            if (InvokeRequired)
             {
-                labAbilityCommandState.Text = "游戏进程不可用";
-                ReportProcessIdFailure(ex.ProcessId);
+                try
+                {
+                    BeginInvoke(action);
+                }
+                catch (InvalidOperationException)
+                {
+                }
+                return;
             }
-            catch (InvalidOperationException ex)
-            {
-                labAbilityCommandState.Text = ex.Message;
-                MessageBox.Show(
-                    ex.Message,
-                    "JASS技能",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning);
-            }
+
+            action();
         }
 
         private static bool IsValidAbilityId(string abilityId)
@@ -907,11 +993,24 @@ namespace War3Trainer
                         {
                             ExecuteJassRemoveAbility(mem, jassHandle, abilityIdValue);
                         }
+
+                        DelayAfterAbilityGroupCommand();
                     }
                 }
             }
 
             return selectedUnits.Count;
+        }
+
+        private void DelayAfterAbilityGroupCommand()
+        {
+            int delayMilliseconds;
+            lock (_abilityGroupDelayRandom)
+            {
+                delayMilliseconds = _abilityGroupDelayRandom.Next(10, 301);
+            }
+
+            Thread.Sleep(delayMilliseconds);
         }
 
         private void EnsureJassAbilityFunctionAddress(bool addAbility)
